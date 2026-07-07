@@ -53,7 +53,7 @@ per-story phases are thin deltas on top of the shared foundation.
 - [ ] T020 Implement a `Result`→HTTP helper (success→body, failure→ProblemDetails with `code`) for endpoints in `src/RagBook.API/ProblemDetails/`.
 - [ ] T021 Implement `SessionMiddleware` (read/validate cookie via `Guid.TryParse`; mint `Guid.NewGuid()` on miss/forged; publish to `SessionContext`; write/refresh cookie with mandated flags from `SessionOptions` via `TimeProvider`) in `src/RagBook.API/Sessions/SessionMiddleware.cs`.
 - [ ] T022 Wire DI + pipeline in `src/RagBook.API/Program.cs` and `AddApp()`/`AddInfrastructure()`: Wolverine dispatch, FluentValidation auto-registration, `SessionMiddleware`, exception handler, ServiceDefaults; behaviors ordered Logging → Validation → Transaction.
-- [ ] T023 Wire `src/RagBook.AppHost` to provision PostgreSQL (pgvector-capable image), reference the API, and add `src/Web` as an npm resource; API calls `AddServiceDefaults()`.
+- [ ] T023 Wire `src/RagBook.AppHost` to provision PostgreSQL (pgvector-capable image), reference the API, and orchestrate the Angular dev server via `AddExecutable("web", "npm", "../Web", "run", "start")` (Aspire 13.4.6 has no compatible `AddNpmApp`); API calls `AddServiceDefaults()`.
 - [ ] T024 Create the `IntegrationTestFactory` (`WebApplicationFactory` + Testcontainers `PostgreSqlContainer`; applies migrations/schema in fixture setup; helper to issue requests with a chosen session cookie) in `tests/RagBook.Api.IntegrationTests/`.
 
 **Checkpoint**: Foundation ready — DbContext filter, middleware, error mapping, and test harness exist.

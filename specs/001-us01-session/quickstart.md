@@ -7,9 +7,10 @@
 ## Run locally (Aspire)
 
 ```sh
+cd src/Web && npm install && cd -        # install SPA deps once (prerequisite for the web resource)
 dotnet run --project src/RagBook.AppHost
-# Aspire dashboard prints its URL; it starts PostgreSQL and the API.
-cd src/Web && npm install && npm start   # Angular dev server (proxies /api → API), run separately
+# Aspire dashboard prints its URL; it starts PostgreSQL, the API, and the Angular dev server
+# (the SPA is orchestrated via AddExecutable running `npm run start`).
 ```
 
 ## Automated validation (the source of truth for DoD)

@@ -64,8 +64,8 @@ cd src/Web && npm install && npm test   # ng test (Karma/Jasmine, headless)
 ## Uruchom lokalnie (run locally)
 
 ```sh
-dotnet run --project src/RagBook.AppHost   # Aspire: PostgreSQL (pgvector) + API — Docker required
-cd src/Web && npm install && npm start     # Angular dev server; proxy.conf.json forwards /api → API
+cd src/Web && npm install && cd -          # install SPA deps once (prerequisite for the web resource)
+dotnet run --project src/RagBook.AppHost   # Aspire: PostgreSQL (pgvector) + API + Angular dev server — Docker required
 ```
 
 The Aspire dashboard prints its URL on startup. The API reads connection string `ragbookdb` (injected
@@ -81,3 +81,7 @@ by Aspire); running the API standalone requires that connection string in config
   requires `new PostgreSqlBuilder("image:tag")` (parameterless ctor is obsolete).
 - **Integration tests need Docker**: without a running engine the Testcontainers tier errors at
   container startup, not on assertions. The middleware and offline query-filter tests run without it.
+- **Angular in AppHost via `AddExecutable`**: Aspire 13.4.6 has no compatible `AddNpmApp`
+  (`Aspire.Hosting.NodeJs` and the CommunityToolkit Node hosting are stuck on the incompatible 9.x
+  line), so `RagBook.AppHost` orchestrates the SPA with core `AddExecutable("web","npm","../Web",
+  "run","start")`. `npm install` in `src/Web` is a prerequisite before `dotnet run`-ing the AppHost.

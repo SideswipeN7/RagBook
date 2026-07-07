@@ -17,7 +17,7 @@ spec-driven artifacts (constitution, spec, plan, tasks).
 | `src/RagBook.API` | Transport: endpoints, session middleware, DI composition, ProblemDetails mapping. |
 | `src/RagBook.Infrastructure` | EF Core persistence, session context, interceptors (`SharedContext/`). |
 | `src/RagBook.Infrastructure.Migrations` | EF Core migrations only. |
-| `src/RagBook.AppHost` | .NET Aspire orchestration (PostgreSQL + API). |
+| `src/RagBook.AppHost` | .NET Aspire orchestration (PostgreSQL + API + Angular dev server). |
 | `src/RagBook.ServiceDefaults` | Shared telemetry/health/resilience (`AddServiceDefaults()`). |
 | `src/Web` | Angular SPA shell (standalone, signals, OnPush). |
 | `tests/*` | Domain / Application / Api.IntegrationTests (Testcontainers). |
@@ -34,8 +34,8 @@ dotnet test  tests/RagBook.Api.IntegrationTests # Testcontainers PostgreSQL — 
 ## Run locally
 
 ```sh
-dotnet run --project src/RagBook.AppHost      # Aspire starts PostgreSQL + the API (Docker required)
-cd src/Web && npm install && npm start        # Angular dev server (proxies /api to the API)
+cd src/Web && npm install && cd -             # install SPA deps once (prerequisite for the web resource)
+dotnet run --project src/RagBook.AppHost      # Aspire starts PostgreSQL + the API + the Angular dev server (Docker required)
 ```
 
 Migrations are created in `src/RagBook.Infrastructure.Migrations` and applied out-of-band (a bundle
