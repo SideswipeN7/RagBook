@@ -19,6 +19,7 @@ public static class ProblemResults
             extensions: new Dictionary<string, object?>
             {
                 ["code"] = error.Code,
+                ["traceId"] = System.Diagnostics.Activity.Current?.Id,
             });
     }
 }
