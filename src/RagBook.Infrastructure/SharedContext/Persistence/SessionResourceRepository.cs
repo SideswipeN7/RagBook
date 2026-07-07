@@ -25,7 +25,7 @@ public sealed class SessionResourceRepository(
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (Exception exception) when (exception is DbUpdateException)
+        catch (DbUpdateException exception)
         {
             var kind = exceptionClassifier.Classify(exception);
             if (SessionExceptionHandler.TryMap(kind, out Error error))
