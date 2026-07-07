@@ -1,0 +1,58 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using RagBook.Infrastructure.SharedContext.Interceptors;
+using RagBook.Infrastructure.SharedContext.Persistence;
+using RagBook.Infrastructure.SharedContext.Sessions;
+using RagBook.Modules.Session.Domain;
+using RagBook.Shared.Persistence;
+using RagBook.Shared.Sessions;
+
+namespace RagBook.Infrastructure;
+
+/// <summary>Composition root for the infrastructure layer.</summary>
+public static class DependencyInjection
+{
+    /// <summary>Assembly that holds EF Core migrations (constitution §VIII — migrations project only).</summary>
+    public const string MigrationsAssemblyName = "RagBook.Infrastructure.Migrations";
+
+    /// <summary>
+    /// Registers persistence, the session context, interceptors, and repositories against the given
+    /// PostgreSQL <paramref name="connectionString"/>.
+    /// </summary>
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)
+    {
+        services.TryAddSingletonTimeProvider();
+
+        // One SessionContext instance per request backs both the reader and the initializer.
+        services.AddScoped<SessionContext>();
+        services.AddScoped<ISessionContext>(provider => provider.GetRequiredService<SessionContext>());
+        services.AddScoped<ISessionInitializer>(provider => provider.GetRequiredService<SessionContext>());
+
+        services.AddSingleton<IPersistenceExceptionClassifier, NpgsqlPersistenceExceptionClassifier>();
+
+        services.AddScoped<SessionStampingInterceptor>();
+        services.AddScoped<AuditingInterceptor>();
+
+        services.AddDbContext<RagBookDbContext>((provider, options) =>
+        {
+            options.UseNpgsql(
+                connectionString,
+                npgsql => npgsql.MigrationsAssembly(MigrationsAssemblyName));
+            options.AddInterceptors(
+                provider.GetRequiredService<SessionStampingInterceptor>(),
+                provider.GetRequiredService<AuditingInterceptor>());
+        });
+
+        services.AddScoped<ISessionResourceRepository, SessionResourceRepository>();
+
+        return services;
+    }
+
+    private static void TryAddSingletonTimeProvider(this IServiceCollection services)
+    {
+        if (!services.Any(descriptor => descriptor.ServiceType == typeof(TimeProvider)))
+        {
+            services.AddSingleton(TimeProvider.System);
+        }
+    }
+}

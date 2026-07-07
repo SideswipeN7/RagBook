@@ -1,0 +1,49 @@
+using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
+using RagBook.Modules.Session.Domain;
+using RagBook.Shared.Sessions;
+
+namespace RagBook.Infrastructure.SharedContext.Persistence;
+
+/// <summary>
+/// The application's EF Core context. It applies a global query filter on <see cref="ISessionOwned"/>
+/// for every such entity, keyed to the injected <see cref="ISessionContext"/> — the single
+/// architectural mechanism that makes cross-session reads impossible by construction (AC-4).
+/// </summary>
+public sealed class RagBookDbContext(DbContextOptions<RagBookDbContext> options, ISessionContext sessionContext)
+    : DbContext(options)
+{
+    /// <summary>The reference session-owned resources.</summary>
+    public DbSet<SessionResource> SessionResources => Set<SessionResource>();
+
+    /// <inheritdoc />
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(RagBookDbContext).Assembly);
+
+        ApplySessionQueryFilters(modelBuilder);
+    }
+
+    private void ApplySessionQueryFilters(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (!typeof(ISessionOwned).IsAssignableFrom(entityType.ClrType))
+            {
+                continue;
+            }
+
+            var parameter = Expression.Parameter(entityType.ClrType, "e");
+            var property = Expression.Property(parameter, nameof(ISessionOwned.UserSessionId));
+
+            // Capture 'this.sessionContext.UserSessionId' so EF re-evaluates the current session per query.
+            Expression<Func<Guid>> currentSession = () => sessionContext.UserSessionId;
+            var predicate = Expression.Equal(property, currentSession.Body);
+            var lambda = Expression.Lambda(predicate, parameter);
+
+            modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+        }
+    }
+}

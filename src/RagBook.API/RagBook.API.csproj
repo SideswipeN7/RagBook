@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>RagBook.API</RootNamespace>
+    <AssemblyName>RagBook.API</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WolverineFx" />
+    <PackageReference Include="WolverineFx.Http" />
+    <PackageReference Include="WolverineFx.FluentValidation" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RagBook\RagBook.csproj" />
+    <ProjectReference Include="..\RagBook.Infrastructure\RagBook.Infrastructure.csproj" />
+    <ProjectReference Include="..\RagBook.ServiceDefaults\RagBook.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>
