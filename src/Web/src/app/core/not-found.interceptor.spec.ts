@@ -1,6 +1,7 @@
 import { HttpErrorResponse, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { HttpClient } from '@angular/common/http';
+import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NotFoundNotifier } from './not-found-notifier';
 import { notFoundInterceptor } from './not-found.interceptor';
@@ -13,6 +14,7 @@ describe('notFoundInterceptor', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
+        provideZonelessChangeDetection(),
         provideHttpClient(withInterceptors([notFoundInterceptor])),
         provideHttpClientTesting(),
       ],
