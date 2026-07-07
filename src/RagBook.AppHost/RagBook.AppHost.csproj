@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="13.4.6" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>RagBook.AppHost</RootNamespace>
+    <AssemblyName>RagBook.AppHost</AssemblyName>
+    <IsAspireHost>true</IsAspireHost>
+    <UserSecretsId>ragbook-apphost</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RagBook.API\RagBook.API.csproj" />
+  </ItemGroup>
+
+</Project>

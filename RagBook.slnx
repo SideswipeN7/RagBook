@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RagBook.API/RagBook.API.csproj" />
+    <Project Path="src/RagBook.AppHost/RagBook.AppHost.csproj" />
+    <Project Path="src/RagBook.Infrastructure.Migrations/RagBook.Infrastructure.Migrations.csproj" />
+    <Project Path="src/RagBook.Infrastructure/RagBook.Infrastructure.csproj" />
+    <Project Path="src/RagBook.ServiceDefaults/RagBook.ServiceDefaults.csproj" />
+    <Project Path="src/RagBook/RagBook.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RagBook.Api.IntegrationTests/RagBook.Api.IntegrationTests.csproj" />
+    <Project Path="tests/RagBook.Application.Tests/RagBook.Application.Tests.csproj" />
+    <Project Path="tests/RagBook.Domain.Tests/RagBook.Domain.Tests.csproj" />
+  </Folder>
+</Solution>

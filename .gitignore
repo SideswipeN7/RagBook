@@ -55,3 +55,12 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Local tooling / test artifacts
+.dotnet/
+TestResults/
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
