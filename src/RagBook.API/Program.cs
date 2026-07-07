@@ -3,6 +3,7 @@ using RagBook.API.Endpoints;
 using RagBook.API.ProblemDetails;
 using RagBook.API.Sessions;
 using RagBook.Infrastructure;
+using JasperFx.CodeGeneration.Model;
 using RagBook.ServiceDefaults;
 using Wolverine;
 using Wolverine.FluentValidation;
@@ -26,6 +27,12 @@ builder.Host.UseWolverine(options =>
 {
     options.UseFluentValidation();
     options.Discovery.IncludeAssembly(typeof(Marker).Assembly);
+
+    // Handler dependencies (RagBookDbContext and the scoped ISessionContext behind it) are registered
+    // via factory lambdas, so Wolverine cannot construct them inline and must resolve them from the
+    // request container. Wolverine 6.x defaults ServiceLocationPolicy to NotAllowed, which otherwise
+    // fails handler code generation with InvalidServiceLocationException.
+    options.ServiceLocationPolicy = ServiceLocationPolicy.AllowedButWarn;
 });
 
 var app = builder.Build();

@@ -19,8 +19,11 @@ public sealed class SessionIsolationTests(RagBookApiFactory factory)
 
     private HttpClient NewSessionClient()
     {
+        // The session cookie is issued Secure (AC-1), so it only round-trips over https — model a real
+        // secure client, otherwise CookieContainer drops it and every request mints a fresh session.
         return factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
         {
+            BaseAddress = new Uri("https://localhost"),
             HandleCookies = true,
         });
     }
