@@ -8,6 +8,7 @@
   <ItemGroup Label="Dispatch / messaging">
     <PackageVersion Include="WolverineFx" Version="6.16.0" />
     <PackageVersion Include="WolverineFx.Http" Version="6.16.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.16.0" />
     <PackageVersion Include="WolverineFx.FluentValidation" Version="6.16.0" />
   </ItemGroup>
 

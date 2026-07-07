@@ -9,6 +9,7 @@
     <PackageReference Include="WolverineFx" />
     <PackageReference Include="WolverineFx.Http" />
     <PackageReference Include="WolverineFx.FluentValidation" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
   </ItemGroup>
 
   <ItemGroup>
