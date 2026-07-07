@@ -11,6 +11,28 @@ identifying a user without login, so their documents, folders and conversations 
 isolated from other users. Foundation story (P1, blocks everything). Binding cross-cutting
 decisions from `docs/features/README.md` apply.
 
+## Clarifications
+
+### Session 2026-07-07
+
+A structured ambiguity scan (functional scope, domain/data, UX flow, non-functional,
+integration, edge cases, constraints, terminology, completion signals) was run against this
+spec. **No open product/scope questions were found**: every material decision point is already
+fixed as a settled constraint and therefore not re-opened here —
+
+- Cookie attributes (`HttpOnly`, `Secure`, `SameSite=Strict`), GUID v4 identifier, and 30-day
+  sliding expiry — fixed by US-01 "Kontekst / decyzje projektowe".
+- Unauthorized access returns **404, never 403** — fixed by US-01 and README "Decyzje przekrojowe".
+- Isolation via a `UserSessionId` column on every domain entity, enforced by a single shared
+  mechanism (EF Core global query filter) — fixed by README "Decyzje przekrojowe".
+- Frontend carries no isolation logic; interceptor maps 404 → "resource does not exist" — fixed
+  by US-01 technical scope.
+- All limits/tunables are configuration-driven (no magic numbers) — fixed by README "Decyzje
+  przekrojowe".
+
+Remaining decisions are implementation-level (cookie name, dev-vs-prod `Secure` toggle, the
+minimal probe entity used to prove isolation) and are resolved in the plan, not by product input.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Anonymous session on first visit (Priority: P1)
