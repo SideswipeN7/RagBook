@@ -27,7 +27,7 @@ IAuditable         { DateTimeOffset CreatedAt; string CreatedBy;
   fresh GUID. No cross-session behavior lives in the aggregate — isolation is enforced at the query
   boundary, not by the entity.
 
-## Configuration: `SessionOptions` (bound from `Session:*`)
+## Configuration: `SessionCookieOptions` (bound from `Session:*`)
 
 | Key | Default | Meaning |
 |---|---|---|

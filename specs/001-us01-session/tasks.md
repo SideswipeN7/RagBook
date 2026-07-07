@@ -45,13 +45,13 @@ per-story phases are thin deltas on top of the shared foundation.
 - [ ] T012 [P] Core `Shared/Messaging/`: `ICommand`, `ICommand<T>`, `IQuery<T>`, `IEvent`, `IExternalEvent` markers in `src/RagBook/Shared/Messaging/`.
 - [ ] T013 [P] Core `Shared/Sessions/`: `ISessionContext { Guid UserSessionId }` and `ISessionOwned { Guid UserSessionId }` in `src/RagBook/Shared/Sessions/`.
 - [ ] T014 [P] Core `Shared/Auditing/`: `IAuditable` in `src/RagBook/Shared/Auditing/`.
-- [ ] T015 Bind `SessionOptions` (CookieName, SlidingExpirationDays=30, Secure, SameSite) from `Session:*` config in `src/RagBook.Infrastructure/SharedContext/Sessions/SessionOptions.cs` + options validation (no magic numbers).
+- [ ] T015 Bind `SessionCookieOptions` (CookieName, SlidingExpirationDays=30, Secure, SameSite) from `Session:*` config in `src/RagBook.API/Sessions/SessionCookieOptions.cs` + options validation (no magic numbers).
 - [ ] T016 Implement `SessionContext` (scoped, ambient accessor fed by middleware) in `src/RagBook.Infrastructure/SharedContext/Sessions/SessionContext.cs`.
 - [ ] T017 Implement `RagBookDbContext` in `src/RagBook.Infrastructure/SharedContext/Persistence/` that applies the `ISessionOwned` **global query filter** generically (reflect over `ISessionOwned` implementers) using the injected `ISessionContext`.
 - [ ] T018 [P] Implement `SessionStampingInterceptor` (stamp `UserSessionId` on `Added` `ISessionOwned`) and `AuditingInterceptor` (`IAuditable` via `TimeProvider`) in `src/RagBook.Infrastructure/SharedContext/Interceptors/`.
 - [ ] T019 Implement global `IExceptionHandler` → RFC 9457 ProblemDetails writer (maps `ErrorType`→status, always includes `code`; unknown → sanitized 500 `error.unexpected` + traceId) in `src/RagBook.API/ProblemDetails/GlobalExceptionHandler.cs`.
 - [ ] T020 Implement a `Result`→HTTP helper (success→body, failure→ProblemDetails with `code`) for endpoints in `src/RagBook.API/ProblemDetails/`.
-- [ ] T021 Implement `SessionMiddleware` (read/validate cookie via `Guid.TryParse`; mint `Guid.NewGuid()` on miss/forged; publish to `SessionContext`; write/refresh cookie with mandated flags from `SessionOptions` via `TimeProvider`) in `src/RagBook.API/Sessions/SessionMiddleware.cs`.
+- [ ] T021 Implement `SessionMiddleware` (read/validate cookie via `Guid.TryParse`; mint `Guid.NewGuid()` on miss/forged; publish to `SessionContext`; write/refresh cookie with mandated flags from `SessionCookieOptions` via `TimeProvider`) in `src/RagBook.API/Sessions/SessionMiddleware.cs`.
 - [ ] T022 Wire DI + pipeline in `src/RagBook.API/Program.cs` and `AddApp()`/`AddInfrastructure()`: Wolverine dispatch, FluentValidation auto-registration, `SessionMiddleware`, exception handler, ServiceDefaults; behaviors ordered Logging → Validation → Transaction.
 - [ ] T023 Wire `src/RagBook.AppHost` to provision PostgreSQL (pgvector-capable image), reference the API, and orchestrate the Angular dev server via `AddExecutable("web", "npm", "../Web", "run", "start")` (Aspire 13.4.6 has no compatible `AddNpmApp`); API calls `AddServiceDefaults()`.
 - [ ] T024 Create the `IntegrationTestFactory` (`WebApplicationFactory` + Testcontainers `PostgreSqlContainer`; applies migrations/schema in fixture setup; helper to issue requests with a chosen session cookie) in `tests/RagBook.Api.IntegrationTests/`.
@@ -70,7 +70,7 @@ empty-session state (AC-1).
 - [ ] T025 [P] [US1] Domain test (Red): `Should_GenerateVersion4Guid_When_SessionCreated` and cookie-flag rules helper test in `tests/RagBook.Domain.Tests/`.
 - [ ] T026 [US1] Integration test (Red): `Should_IssueSessionCookie_When_RequestHasNoCookie` asserting `Set-Cookie` with `HttpOnly`, `Secure`, `SameSite=Strict`, ~30-day expiry, GUID v4, and body `{isNew:true,resourceCount:0}` in `tests/RagBook.Api.IntegrationTests/`.
 - [ ] T027 [US1] Implement `GET /api/session` endpoint returning session state (`isNew`, `resourceCount`) in `src/RagBook.API/Endpoints/` (Green).
-- [ ] T028 [US1] Refactor: extract `SessionCookieWriter` from middleware; ensure flags come solely from `SessionOptions` (stay green).
+- [ ] T028 [US1] Refactor: keep cookie writing inline in `SessionMiddleware`; ensure flags come solely from `SessionCookieOptions` (stay green).
 
 **Checkpoint**: New visitors get an isolated identity — MVP demonstrable.
 

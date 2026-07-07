@@ -60,7 +60,7 @@ mechanism + foundation, explicitly excluding document/folder/conversation featur
 | **IV. Test-first (Red→Green→Refactor)** | Domain tests (cookie/GUID rules, entity invariants), Application tests (handlers with mocked repo, factory-method SUT), Integration tests (Testcontainers PG) covering AC-1..AC-4. ✅ |
 | **V. Provider resilience + cache** | No external providers in US-01 — N/A. Seam conventions established for later stories only. ✅ |
 | **VI. Auditing & time** | `TimeProvider` injected (no `DateTime.UtcNow`); `IAuditable` + `AuditingInterceptor` established on `SessionResource` as the foundation pattern; session stamped centrally by a `SaveChangesInterceptor`, never by hand. ✅ |
-| **VII. Secrets** | No AI keys in US-01. Cookie/session tunables via `SessionOptions` bound from config — no magic numbers. ✅ |
+| **VII. Secrets** | No AI keys in US-01. Cookie/session tunables via `SessionCookieOptions` bound from config — no magic numbers. ✅ |
 | **VIII. Operations & delivery** | AppHost (Aspire) provisions PostgreSQL and wires API + Angular; `AddServiceDefaults()`; migrations created in `.Migrations`, applied via bundle/init — never at startup. ✅ |
 | **IX. Frontend & design system** | Angular standalone shell (OnPush, Signals, new control flow); HTTP interceptor maps 404 → "resource does not exist"; design tokens from `DESIGN.md`, no inline hex; no isolation logic client-side. ✅ |
 
@@ -105,7 +105,8 @@ src/
 │               └── ListResources/             # ListResourcesQuery + Handler
 ├── RagBook.API/
 │   ├── Program.cs                             # Wolverine, DI composition, pipeline
-│   ├── Sessions/SessionMiddleware.cs          # read/validate/issue cookie → ISessionContext
+│   ├── Sessions/SessionMiddleware.cs          # read/validate/issue + write cookie → ISessionContext
+│   ├── Sessions/SessionCookieOptions.cs       # cookie tunables bound from Session:*
 │   ├── Endpoints/                             # /api/session, /api/resources
 │   └── ProblemDetails/GlobalExceptionHandler.cs
 ├── RagBook.Infrastructure/
@@ -114,7 +115,6 @@ src/
 │       ├── Persistence/RagBookDbContext.cs    # applies global query filter for ISessionOwned
 │       ├── Persistence/Configurations/        # SessionResource EF config (index on UserSessionId)
 │       ├── Sessions/SessionContext.cs         # ISessionContext impl (scoped, ambient accessor)
-│       ├── Sessions/SessionCookieWriter.cs    # cookie options from SessionOptions
 │       └── Interceptors/                      # SessionStampingInterceptor, AuditingInterceptor
 ├── RagBook.Infrastructure.Migrations/         # EF migrations only (InitialSession)
 ├── RagBook.AppHost/                           # Aspire: postgres(pgvector) + api + angular
@@ -151,6 +151,6 @@ stories add sibling modules under `src/RagBook/Modules/` without touching this o
   v4 generation, global-query-filter shape, how the DbContext obtains the current session, session
   stamping on insert, and the Aspire/Angular wiring choices. No open NEEDS CLARIFICATION.
 - **Phase 1 (data-model.md, contracts/, quickstart.md)** — `SessionResource` + `ISessionOwned` +
-  `SessionOptions`; the `/api/session` and `/api/resources` contracts; and the runnable quickstart
+  `SessionCookieOptions`; the `/api/session` and `/api/resources` contracts; and the runnable quickstart
   proving AC-1..AC-4.
 - **Phase 2 (tasks.md)** — produced by `/speckit-tasks`, ordered Red→Green→Refactor per tier.

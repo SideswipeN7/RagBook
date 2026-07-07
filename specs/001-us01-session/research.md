@@ -18,7 +18,7 @@ implementation-level unknown noted in the Clarifications section.
 
 ## D2 — Cookie attributes (config-driven)
 
-- **Decision**: `SessionOptions { CookieName = "ragbook_session", SlidingExpiration = 30.00:00:00,
+- **Decision**: `SessionCookieOptions { CookieName = "ragbook_session", SlidingExpiration = 30.00:00:00,
   Secure = true, SameSite = Strict, HttpOnly = true }` bound from `Session:*` configuration.
   Cookie is written with `HttpOnly`, `Secure`, `SameSite=Strict`, `Expires = now + SlidingExpiration`
   (via `TimeProvider`), `Path=/`. `Secure` stays `true`; Aspire serves the API over HTTPS locally,
