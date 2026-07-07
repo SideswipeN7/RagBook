@@ -1,0 +1,22 @@
+<main class="shell">
+  <h1 class="shell__title">RagBook</h1>
+
+  @if (notFoundMessage(); as message) {
+    <p class="shell__notice" role="status">{{ message }}</p>
+  }
+
+  @if (state(); as session) {
+    <section class="shell__card">
+      <p>
+        @if (session.isNew) {
+          Welcome — a private session was just created for you.
+        } @else {
+          Welcome back.
+        }
+      </p>
+      <p class="shell__muted">Documents in this session: {{ session.resourceCount }}</p>
+    </section>
+  } @else {
+    <p class="shell__muted">Starting your session…</p>
+  }
+</main>

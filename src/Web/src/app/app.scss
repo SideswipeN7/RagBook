@@ -1,0 +1,38 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: var(--color-canvas);
+  color: var(--color-body);
+  font-family: var(--font-sans);
+}
+
+.shell {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-md);
+
+  &__title {
+    font-family: var(--font-display);
+    color: var(--color-ink);
+    margin-bottom: var(--space-lg);
+  }
+
+  &__card {
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+  }
+
+  &__notice {
+    background: var(--color-surface-soft);
+    border-left: 4px solid var(--color-warning);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-md);
+  }
+
+  &__muted {
+    color: var(--color-muted);
+  }
+}
