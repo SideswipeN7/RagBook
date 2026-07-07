@@ -8,7 +8,8 @@
 
 ```sh
 dotnet run --project src/RagBook.AppHost
-# Aspire dashboard prints its URL; it starts PostgreSQL, the API, and the Angular dev server.
+# Aspire dashboard prints its URL; it starts PostgreSQL and the API.
+cd src/Web && npm install && npm start   # Angular dev server (proxies /api → API), run separately
 ```
 
 ## Automated validation (the source of truth for DoD)

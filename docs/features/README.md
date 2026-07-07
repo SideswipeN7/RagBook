@@ -40,7 +40,7 @@ Kandydaci do cięcia przy braku czasu: US-12, US-18 (reszta to rdzeń).
 
 ## Jak używać ze spec-kit
 
-- Katalog `user-stories/` zawiera po jednym pliku na US: historia, kontekst i decyzje projektowe, kryteria akceptacji (Given/When/Then), zakres techniczny, przypadki brzegowe, poza zakresem, Definition of Done.
+- Ten katalog (`docs/features/`) zawiera po jednym pliku na US: historia, kontekst i decyzje projektowe, kryteria akceptacji (Given/When/Then), zakres techniczny, przypadki brzegowe, poza zakresem, Definition of Done.
 - Rekomendowany przepływ: dla każdego kamienia milowego uruchom `/specify` podając treść plików US wchodzących w milestone (spec-kit złoży z nich spec funkcjonalny), potem `/plan` (wskaż stack z nagłówka tego README jako constraints), następnie `/tasks` i implementacja.
 - Sekcje „Kontekst / decyzje projektowe" traktuj jako wiążące constraints dla `/plan` — zawierają rozstrzygnięcia (materialized path, pre-filtering pgvector, BYOK bez persystencji, fraza-sentinel), które mają być odzwierciedlone w planie, nie ponownie otwierane.
 - Sekcje „Poza zakresem" przenoś do speca wprost — chronią przed rozrostem zakresu podczas generowania planu.
