@@ -52,6 +52,7 @@ dotnet test  tests/RagBook.Api.IntegrationTests     # Testcontainers PostgreSQL 
 dotnet test  <proj> --filter "FullyQualifiedName~<Name>"   # single test
 
 # EF migrations (created here; applied out-of-band, NEVER at startup)
+dotnet tool restore                    # restore the pinned dotnet-ef local tool (dotnet-tools.json)
 dotnet ef migrations add <Name> \
   --project src/RagBook.Infrastructure.Migrations \
   --startup-project src/RagBook.Infrastructure.Migrations \
