@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
+import { Observable, tap } from 'rxjs';
 
 /** Empty-session application state returned by <c>GET /api/session</c>. */
 export interface SessionState {
@@ -17,7 +18,9 @@ export class SessionService {
 
   readonly state = signal<SessionState | null>(null);
 
-  load(): void {
-    this.http.get<SessionState>('/api/session').subscribe((state) => this.state.set(state));
+  load(): Observable<SessionState> {
+    return this.http
+      .get<SessionState>('/api/session')
+      .pipe(tap((state) => this.state.set(state)));
   }
 }

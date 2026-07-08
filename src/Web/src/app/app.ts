@@ -21,7 +21,6 @@ export class App implements OnInit {
   readonly notFoundMessage = this.notFound.message;
 
   ngOnInit(): void {
-    this.session.load();
-    this.quota.refresh();
+    this.session.load().subscribe(() => this.quota.refresh());
   }
 }
