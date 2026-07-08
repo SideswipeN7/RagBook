@@ -4,6 +4,7 @@ using RagBook.API.ProblemDetails;
 using RagBook.API.Sessions;
 using RagBook.Infrastructure;
 using JasperFx.CodeGeneration.Model;
+using RagBook.Modules.Documents.Quota;
 using RagBook.ServiceDefaults;
 using Wolverine;
 using Wolverine.FluentValidation;
@@ -13,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 builder.Services.Configure<SessionCookieOptions>(builder.Configuration.GetSection(SessionCookieOptions.SectionName));
+builder.Services.Configure<QuotaOptions>(builder.Configuration.GetSection(QuotaOptions.SectionName));
 
 builder.Services.AddApp();
 
@@ -45,6 +47,7 @@ app.UseMiddleware<SessionMiddleware>();
 app.MapDefaultEndpoints();
 app.MapSessionEndpoints();
 app.MapResourceEndpoints();
+app.MapQuotaEndpoints();
 
 await app.RunAsync();
 

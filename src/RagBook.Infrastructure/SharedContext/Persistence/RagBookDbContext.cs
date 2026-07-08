@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using RagBook.Modules.Documents.Domain;
 using RagBook.Modules.Session.Domain;
 using RagBook.Shared.Sessions;
 
@@ -15,6 +16,9 @@ public sealed class RagBookDbContext(DbContextOptions<RagBookDbContext> options,
 {
     /// <summary>The reference session-owned resources.</summary>
     public DbSet<SessionResource> SessionResources => Set<SessionResource>();
+
+    /// <summary>Session-owned documents; the quota counts and sizes these (US-05).</summary>
+    public DbSet<Document> Documents => Set<Document>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)

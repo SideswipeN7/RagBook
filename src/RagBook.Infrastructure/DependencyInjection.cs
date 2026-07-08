@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RagBook.Infrastructure.SharedContext.Interceptors;
 using RagBook.Infrastructure.SharedContext.Persistence;
 using RagBook.Infrastructure.SharedContext.Sessions;
+using RagBook.Modules.Documents.Domain;
 using RagBook.Modules.Session.Domain;
 using RagBook.Shared.Persistence;
 using RagBook.Shared.Sessions;
@@ -44,6 +45,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<ISessionResourceRepository, SessionResourceRepository>();
+        services.AddScoped<IDocumentQuotaRepository, DocumentQuotaRepository>();
 
         return services;
     }
