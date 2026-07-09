@@ -5,9 +5,9 @@ ask natural-language questions → stream answers with clickable citations. A **
 monolith (vertical slices, `Result<T>`, Wolverine) paired with an **Angular** SPA, orchestrated by
 **.NET Aspire**, backed by **PostgreSQL + pgvector**, deployed to **GCP Cloud Run**.
 
-This repository currently implements **US-01 — user session (data isolation)** plus the greenfield
-solution foundation. See `docs/features/` for the full story map and `.specify/` for the
-spec-driven artifacts (constitution, spec, plan, tasks).
+This repository currently implements **US-01 — user session (data isolation)** and **US-05 — file
+quota** plus the greenfield solution foundation. See `docs/features/` for the full story map and
+`.specify/` for the spec-driven artifacts (constitution, spec, plan, tasks).
 
 ## Solution layout
 
@@ -63,6 +63,36 @@ Isolation is **enforced architecturally, not by hand in handlers**:
 This is verified by the `tests/RagBook.Api.IntegrationTests` suite (Testcontainers PostgreSQL) for
 AC-1..AC-4, and by an offline model test asserting the query filter is present on every
 `ISessionOwned` entity.
+
+## Limit plików (file quota)
+
+Each session gets a **free-tier file quota**, enforced **server-side before any write** (US-05):
+
+| Limit | Default | Config key |
+|---|---|---|
+| Documents per session | **10** | `Quota:MaxDocuments` |
+| Single file size | **10 MB** | `Quota:MaxFileSizeMb` |
+| Total storage per session | **50 MB** | `Quota:MaxTotalMb` |
+
+Every limit is **config-driven — no magic numbers**. The defaults model the free tier; **"quota-ready"**
+means raising a tier is a **configuration edit only** (`QuotaOptions` bound from the `Quota` section),
+no code change. MB are decimal (1 MB = 1,000,000 bytes).
+
+- The **`Documents` module** owns the quota slice: `IQuotaService` decides admission against the pure
+  `QuotaSnapshot`, reading the session's usage through the `IDocumentQuotaRepository` seam. `GET /api/quota`
+  returns the current state (used/limits, `canUpload`) for the UI counter.
+- **Failed** documents count toward the quota; **demo** documents (`DocumentOrigin.Demo`, US-03) do not —
+  a forward-looking seam, not built here. The real upload (US-04) admits files through the same
+  `TryAdmitAsync` seam.
+- Breaches return a stable `quota.*` code (`quota.exceeded`, `quota.total_size_exceeded`,
+  `quota.file_too_large`) through the `Result<T>` → RFC 9457 ProblemDetails channel — never a naked 500.
+- **Concurrency (AC-5):** the quota-check-and-insert is **atomic** — a **transaction-scoped PostgreSQL
+  advisory lock** (`pg_advisory_xact_lock`) keyed by session id serializes admissions, and usage is
+  re-read *under the lock*. Two concurrent uploads at 9/10 admit **at most one** — proven by a
+  Testcontainers PostgreSQL integration test.
+- **Frontend:** a signals-based `QuotaStore` backs the `app-quota-bar` component ("X / 10 plików",
+  "X / 50 MB"); it refreshes from `GET /api/quota` after any upload or deletion so the counter updates
+  without a page reload.
 
 ### Known limitations
 

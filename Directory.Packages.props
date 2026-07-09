@@ -17,6 +17,10 @@
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
   </ItemGroup>
 
+  <ItemGroup Label="Configuration / options">
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.9" />
+  </ItemGroup>
+
   <ItemGroup Label="Data access">
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9" />

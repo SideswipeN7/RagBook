@@ -8,9 +8,9 @@ Project-intrinsic knowledge that should travel with the code. The **constitution
 RagBook — a case-study RAG assistant (upload → pgvector index → streamed answers with citations).
 **.NET 10** modular monolith (vertical slices, `Result<T>`, Wolverine dispatch) + **Angular** SPA,
 orchestrated by **.NET Aspire**, backed by **PostgreSQL + pgvector**, targeting **GCP Cloud Run**.
-Currently implemented: **US-01 (user session / data isolation)** + the greenfield foundation. The
-remaining stories live in `docs/features/US-*.md`; spec-driven artifacts in `.specify/` and
-`specs/001-us01-session/`.
+Currently implemented: **US-01 (user session / data isolation)** and **US-05 (file quota)** + the
+greenfield foundation. The remaining stories live in `docs/features/US-*.md`; spec-driven artifacts in
+`.specify/` and `specs/001-us01-session/` + `specs/002-us05-quota/`.
 
 ## Architecture / conventions
 
@@ -52,6 +52,7 @@ dotnet test  tests/RagBook.Api.IntegrationTests     # Testcontainers PostgreSQL 
 dotnet test  <proj> --filter "FullyQualifiedName~<Name>"   # single test
 
 # EF migrations (created here; applied out-of-band, NEVER at startup)
+dotnet tool restore                    # restore the pinned dotnet-ef local tool (dotnet-tools.json)
 dotnet ef migrations add <Name> \
   --project src/RagBook.Infrastructure.Migrations \
   --startup-project src/RagBook.Infrastructure.Migrations \
@@ -85,3 +86,10 @@ by Aspire); running the API standalone requires that connection string in config
   (`Aspire.Hosting.NodeJs` and the CommunityToolkit Node hosting are stuck on the incompatible 9.x
   line), so `RagBook.AppHost` orchestrates the SPA with core `AddExecutable("web","npm","../Web",
   "run","start")`. `npm install` in `src/Web` is a prerequisite before `dotnet run`-ing the AppHost.
+- **Quota atomicity (US-05, AC-5)**: quota check-and-insert must be **atomic** or two concurrent
+  uploads at 9/10 both admit. The `Documents` module does it with a **transaction-scoped advisory lock**
+  — `DocumentQuotaRepository.TryAddWithinQuotaAsync` runs `SELECT pg_advisory_xact_lock(<key>)` (key
+  derived from the session GUID), **re-reads usage under the lock**, then inserts inside one EF
+  transaction. Do not "optimize" the re-read away — it is what makes the check atomic. Limits are
+  config-driven via `QuotaOptions` (`Quota:*` section); MB are decimal (1 MB = 1,000,000 bytes).
+  `DocumentOrigin.User` (incl. `Failed`) counts toward quota, `DocumentOrigin.Demo` does not.

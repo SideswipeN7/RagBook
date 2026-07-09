@@ -1,0 +1,29 @@
+@if (state(); as quota) {
+  <section class="quota" role="group" aria-label="Limit plików">
+    <div class="quota__row">
+      <span class="quota__label">{{ quota.usedDocuments }} / {{ quota.maxDocuments }} plików</span>
+      <div class="quota__meter">
+        <div
+          class="quota__fill"
+          [class.quota__fill--full]="isFull()"
+          [style.width.%]="documentsPercent()"
+        ></div>
+      </div>
+    </div>
+
+    <div class="quota__row">
+      <span class="quota__label">{{ quota.usedMb }} / {{ quota.maxTotalMb }} MB</span>
+      <div class="quota__meter">
+        <div
+          class="quota__fill"
+          [class.quota__fill--full]="isFull()"
+          [style.width.%]="storagePercent()"
+        ></div>
+      </div>
+    </div>
+
+    @if (isFull()) {
+      <p class="quota__notice" role="status">Limit osiągnięty — usuń pliki, aby wgrać nowe.</p>
+    }
+  </section>
+}

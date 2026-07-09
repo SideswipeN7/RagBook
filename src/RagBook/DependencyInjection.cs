@@ -1,5 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using RagBook.Modules.Documents.Domain;
+using RagBook.Modules.Documents.Quota;
 
 namespace RagBook;
 
@@ -10,6 +12,9 @@ public static class DependencyInjection
     public static IServiceCollection AddApp(this IServiceCollection services)
     {
         services.AddValidatorsFromAssemblyContaining<Marker>(includeInternalTypes: true);
+
+        // Documents module — quota enforcement (US-05). The repository seam is bound in Infrastructure.
+        services.AddScoped<IQuotaService, QuotaService>();
 
         return services;
     }

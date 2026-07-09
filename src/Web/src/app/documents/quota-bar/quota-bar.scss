@@ -1,0 +1,47 @@
+:host {
+  display: block;
+}
+
+.quota {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+
+  &__row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  &__label {
+    font-size: 0.875rem;
+    color: var(--color-body-strong);
+  }
+
+  &__meter {
+    height: 8px;
+    border-radius: var(--radius-xs);
+    background: var(--color-hairline);
+    overflow: hidden;
+  }
+
+  &__fill {
+    height: 100%;
+    background: var(--color-primary);
+    transition: width 150ms ease-in-out;
+
+    &--full {
+      background: var(--color-error);
+    }
+  }
+
+  &__notice {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--color-error);
+  }
+}
