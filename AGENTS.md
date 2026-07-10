@@ -93,3 +93,30 @@ by Aspire); running the API standalone requires that connection string in config
   transaction. Do not "optimize" the re-read away — it is what makes the check atomic. Limits are
   config-driven via `QuotaOptions` (`Quota:*` section); MB are decimal (1 MB = 1,000,000 bytes).
   `DocumentOrigin.User` (incl. `Failed`) counts toward quota, `DocumentOrigin.Demo` does not.
+- **Folder hierarchy (US-09, `Folders` module)**: materialized path with **ids as segments**
+  (`/A/B/C/`, self-inclusive, leading+trailing slash — see `FolderPath`). Depth = segment count, so the
+  3-level cap is a check on the parent's path. **Rename changes only `Name`** — never the path or
+  descendants (that is why ids, not names, are the segments). Per-parent name uniqueness is
+  **case-insensitive** and enforced by **two partial unique indexes** on `(user_session_id, [parent_id,]
+  LOWER(name))` — a separate one `WHERE parent_id IS NULL` for roots, because Postgres treats NULL
+  parent_ids as distinct (a single composite constraint would miss root duplicates). These functional +
+  partial indexes are raw SQL in the `AddFolders` migration (EF's fluent API can't model them). Names
+  are trimmed before validation/uniqueness. Delete is **empty-only**: the self-`parent_id` FK is
+  `ON DELETE RESTRICT` (DB refuses to drop a folder with children → mapped to `folder.not_empty`), and
+  the "has files" arm is the `IFolderFileProbe` seam whose `NoFolderFilesProbe` no-op is replaced by
+  **US-04** once `documents.folder_id` exists. Limits are config-driven via `FolderOptions`
+  (`Folders:*`). `FolderTreeStore` (signals) + `app-folder-tree` back the UI.
+- **Document upload (US-04, `Documents/Features/UploadDocument`)**: validate **by content, not
+  extension** — `FileTypeDetector` checks the `%PDF-` signature, else requires valid UTF-8 text and
+  classifies `.md`→markdown / else plain (`document.unsupported_file_type`; 0 bytes →
+  `document.empty_file`). Order: empty → type → size → folder → **store** → **atomic quota admit**. Size/
+  count/total limits are the **US-05 `QuotaOptions`** (no new limits). `IFileStorage`/`LocalFileStorage`
+  keep blobs **outside Postgres** under config `FileStorage:RootPath`; **store-then-record with
+  compensation** — the handler deletes the blob if the admit/insert fails (no orphans). Duplicate names
+  auto-suffix `name (n).ext` from **1**, computed **under the session advisory lock** (which serializes a
+  session's uploads) — NOT via same-transaction 23505 retry (that aborts the tx on Postgres); two partial
+  unique indexes on `(folder_id, LOWER(file_name))` are a backstop. `NoFolderFilesProbe` was **replaced**
+  by `DocumentFolderFileProbe` (US-09 AC-5 now live). Core publishes `DocumentUploaded` via the
+  `IEventPublisher` abstraction (impl `WolverineEventPublisher` in the API host — Core never references
+  Wolverine); the Documents module reads folder existence through its own `IFolderReference` seam (no
+  Core→Folders reference).

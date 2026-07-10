@@ -1,0 +1,31 @@
+<section class="upload" aria-label="Wgraj dokument">
+  <div
+    class="upload__zone"
+    [class.upload__zone--active]="dragging()"
+    (drop)="onDrop($event)"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave()"
+  >
+    <p class="upload__hint">Przeciągnij plik PDF/TXT/Markdown tutaj lub</p>
+    <label class="upload__btn">
+      Wybierz plik
+      <input
+        #fileInput
+        type="file"
+        class="upload__input"
+        accept=".pdf,.txt,.md,.markdown"
+        (change)="onFileSelected(fileInput)"
+      />
+    </label>
+  </div>
+
+  @if (progress(); as value) {
+    <div class="upload__progress" role="progressbar" [attr.aria-valuenow]="value">
+      <div class="upload__bar" [style.width.%]="value"></div>
+    </div>
+  }
+
+  @if (error(); as message) {
+    <p class="upload__error" role="alert">{{ message }}</p>
+  }
+</section>

@@ -3,7 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using RagBook.Infrastructure.SharedContext.Interceptors;
 using RagBook.Infrastructure.SharedContext.Persistence;
 using RagBook.Infrastructure.SharedContext.Sessions;
+using RagBook.Infrastructure.SharedContext.Storage;
 using RagBook.Modules.Documents.Domain;
+using RagBook.Modules.Folders.Domain;
 using RagBook.Modules.Session.Domain;
 using RagBook.Shared.Persistence;
 using RagBook.Shared.Sessions;
@@ -46,6 +48,15 @@ public static class DependencyInjection
 
         services.AddScoped<ISessionResourceRepository, SessionResourceRepository>();
         services.AddScoped<IDocumentQuotaRepository, DocumentQuotaRepository>();
+
+        services.AddScoped<IFolderRepository, FolderRepository>();
+
+        // US-04 upload wiring. The real folder file-probe REPLACES US-09's NoFolderFilesProbe, so
+        // deleting a folder that contains documents is now blocked (US-09 AC-5 closed end-to-end).
+        services.AddScoped<IFolderFileProbe, DocumentFolderFileProbe>();
+        services.AddScoped<IFolderReference, FolderReference>();
+        services.AddScoped<IDocumentUploadRepository, DocumentUploadRepository>();
+        services.AddScoped<IFileStorage, LocalFileStorage>();
 
         return services;
     }

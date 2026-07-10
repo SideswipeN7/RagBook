@@ -94,8 +94,61 @@ no code change. MB are decimal (1 MB = 1,000,000 bytes).
   "X / 50 MB"); it refreshes from `GET /api/quota` after any upload or deletion so the counter updates
   without a page reload.
 
+## Hierarchia folderów (materialized path)
+
+Folders organise a session's documents into a tree the visitor can **create, rename, and delete**,
+nested up to **3 levels** (US-09). The hierarchy uses a **materialized path whose segments are folder
+ids**, not names:
+
+| Folder | `path` |
+|---|---|
+| `Umowy` (root, id `A`) | `/A/` |
+| `2026` (child, id `B`) | `/A/B/` |
+| `Q1` (grandchild, id `C`) | `/A/B/C/` |
+
+- **Subtree = prefix match, no recursive CTEs.** A folder's descendants are `WHERE path LIKE parent.path
+  || '%'`, backed by a `text_pattern_ops` index on `path`. Depth is the **segment count**, so the
+  3-level limit is a segment check on the parent (`FolderErrors.MaxDepthExceeded`).
+- **Rename is O(1).** Because segments are ids (not names), changing a folder's name never rewrites any
+  path — descendants are untouched.
+- **Names are unique per parent, case-insensitively.** Enforced by **two partial unique indexes** on
+  `(user_session_id, [parent_id,] LOWER(name))` — one `WHERE parent_id IS NULL` (root), one `WHERE
+  parent_id IS NOT NULL` (nested), because Postgres treats `NULL` parent_ids as distinct. A race is
+  caught by the constraint and mapped to `folder.duplicate_name`; names are trimmed before validation.
+- **Only empty folders delete.** A self-referencing `parent_id` FK with `ON DELETE RESTRICT` refuses to
+  drop a folder that still has children; the "contains files" arm is the forward-looking
+  `IFolderFileProbe` seam — **US-04 replaced its no-op with a real `documents.folder_id` query**, so a
+  folder holding files can no longer be deleted. Non-empty → `folder.not_empty`.
+- Every limit is **config-driven** (`Folders:MaxDepth` = 3, `Folders:MaxNameLength` = 100); breaches
+  return stable `folder.*` codes through the `Result<T>` → ProblemDetails channel. **Frontend:** a
+  signals `FolderTreeStore` backs the `app-folder-tree` component (create/rename/delete context actions;
+  "New folder" is hidden at max depth).
+
+## Upload dokumentu (US-04)
+
+Visitors upload **PDF/TXT/Markdown** files into a folder (or the root) via `POST /api/documents`
+(multipart). Validation is **by content, not extension**:
+
+- A PDF is identified by its `%PDF-` signature; any other upload must be **valid UTF-8 text** (rejecting
+  binaries renamed `.txt`) and is classified `.md` → `text/markdown`, else `text/plain`. Mismatches →
+  `document.unsupported_file_type`; 0-byte → `document.empty_file`.
+- The order is **empty → type → size → folder → store → atomic quota admit**. Size, count, and total
+  limits are the **US-05 quota** (`Quota:*`, config-driven); the count/total admit reuses the US-05
+  **advisory lock**, so a folder-target upload and the quota stay atomic under concurrency.
+- Binaries live **outside Postgres** behind **`IFileStorage`** (a local volume in dev via
+  `FileStorage:RootPath`; cloud object storage in prod). **Store-then-record with cleanup**: the row is
+  written only after the blob is stored; a failed admit/insert deletes the blob (no orphans).
+- A duplicate name in a folder is **auto-suffixed** `name (n).ext` (n from 1), computed under the
+  session lock and backed by two partial unique indexes on `(folder_id, LOWER(file_name))` — never
+  blocking, never overwriting, race-safe.
+- On success the document is recorded `Processing` and a **`DocumentUploaded`** event is published for
+  background processing (US-06). **Frontend:** a signals `DocumentUploadStore` + `app-document-upload`
+  (button + drag-and-drop + progress + client pre-validation) refreshes the tree and quota without a reload.
+
 ### Known limitations
 
 - Orphaned data from expired/deleted sessions is **not** garbage-collected (out of scope for the MVP;
   no GDPR-style cleanup yet).
+- **Cascade folder delete** is not built — only empty folders can be deleted (US-09); deleting a folder
+  with its contents is future work.
 - A forged cookie simply starts an empty session; there is no session recovery or authentication.

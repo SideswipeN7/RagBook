@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RagBook.Infrastructure.SharedContext.Persistence;
@@ -11,9 +12,11 @@ using RagBook.Infrastructure.SharedContext.Persistence;
 namespace RagBook.Infrastructure.Migrations.Migrations
 {
     [DbContext(typeof(RagBookDbContext))]
-    partial class RagBookDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260710152900_ExtendDocumentsForUpload")]
+    partial class ExtendDocumentsForUpload
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

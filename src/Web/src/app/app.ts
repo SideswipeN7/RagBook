@@ -3,12 +3,14 @@ import { NotFoundNotifier } from './core/not-found-notifier';
 import { QuotaStore } from './core/quota.store';
 import { SessionService } from './core/session.service';
 import { QuotaBar } from './documents/quota-bar/quota-bar';
+import { DocumentUpload } from './documents/upload/document-upload';
+import { FolderTree } from './folders/folder-tree';
 
 /** Root shell. Standalone, OnPush, signals, new control flow. */
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [QuotaBar],
+  imports: [QuotaBar, DocumentUpload, FolderTree],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
