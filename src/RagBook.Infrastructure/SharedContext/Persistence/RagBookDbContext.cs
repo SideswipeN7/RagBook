@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using RagBook.Modules.Documents.Domain;
+using RagBook.Modules.Folders.Domain;
 using RagBook.Modules.Session.Domain;
 using RagBook.Shared.Sessions;
 
@@ -19,6 +20,9 @@ public sealed class RagBookDbContext(DbContextOptions<RagBookDbContext> options,
 
     /// <summary>Session-owned documents; the quota counts and sizes these (US-05).</summary>
     public DbSet<Document> Documents => Set<Document>();
+
+    /// <summary>Session-owned folders forming the document tree (US-09).</summary>
+    public DbSet<Folder> Folders => Set<Folder>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
