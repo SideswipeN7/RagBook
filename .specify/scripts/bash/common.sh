@@ -107,9 +107,13 @@ read_feature_json_feature_directory() {
         if ! _fd=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); v=d.get('feature_directory'); print(v if v else '')" "$fj" 2>/dev/null); then
             _fd=''
         fi
-    else
-        # Last-resort single-line grep/sed fallback. The `|| true` guards against
-        # grep returning 1 (no match) aborting under `set -e` / `pipefail`.
+    fi
+
+    # Resilient fallback: if the preferred parser (jq/python3) was present but
+    # yielded nothing — e.g. Windows' Store stub `python3` that exits 0 without
+    # output — recover via a single-line grep/sed parse. The `|| true` guards
+    # against grep returning 1 (no match) aborting under `set -e` / `pipefail`.
+    if [[ -z "$_fd" ]]; then
         _fd=$( { grep -E '"feature_directory"[[:space:]]*:' "$fj" 2>/dev/null || true; } \
             | head -n 1 \
             | sed -E 's/^[^:]*:[[:space:]]*"([^"]*)".*$/\1/' )

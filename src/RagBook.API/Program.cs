@@ -4,7 +4,11 @@ using RagBook.API.ProblemDetails;
 using RagBook.API.Sessions;
 using RagBook.Infrastructure;
 using JasperFx.CodeGeneration.Model;
+using RagBook.API.Messaging;
+using RagBook.Infrastructure.SharedContext.Storage;
 using RagBook.Modules.Documents.Quota;
+using RagBook.Modules.Folders;
+using RagBook.Shared.Messaging;
 using RagBook.ServiceDefaults;
 using Wolverine;
 using Wolverine.FluentValidation;
@@ -15,12 +19,17 @@ builder.AddServiceDefaults();
 
 builder.Services.Configure<SessionCookieOptions>(builder.Configuration.GetSection(SessionCookieOptions.SectionName));
 builder.Services.Configure<QuotaOptions>(builder.Configuration.GetSection(QuotaOptions.SectionName));
+builder.Services.Configure<FolderOptions>(builder.Configuration.GetSection(FolderOptions.SectionName));
+builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection(FileStorageOptions.SectionName));
 
 builder.Services.AddApp();
 
 var connectionString = builder.Configuration.GetConnectionString("ragbookdb")
     ?? throw new InvalidOperationException("Connection string 'ragbookdb' is not configured.");
 builder.Services.AddInfrastructure(connectionString);
+
+// The core layer publishes in-process events through IEventPublisher; the host backs it with Wolverine.
+builder.Services.AddScoped<IEventPublisher, WolverineEventPublisher>();
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -48,6 +57,8 @@ app.MapDefaultEndpoints();
 app.MapSessionEndpoints();
 app.MapResourceEndpoints();
 app.MapQuotaEndpoints();
+app.MapFolderEndpoints();
+app.MapDocumentEndpoints();
 
 await app.RunAsync();
 

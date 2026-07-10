@@ -21,11 +21,23 @@ public sealed class RagBookApiFactory : WebApplicationFactory<Program>, IAsyncLi
         .WithPassword("postgres")
         .Build();
 
+    /// <summary>Per-factory blob root so uploaded files are isolated and cleaned up (US-04).</summary>
+    public string BlobRoot { get; } = Path.Combine(Path.GetTempPath(), "ragbook-blobs", Guid.NewGuid().ToString("N"));
+
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
         builder.UseSetting("ConnectionStrings:ragbookdb", _container.GetConnectionString());
+        builder.UseSetting("FileStorage:RootPath", BlobRoot);
+    }
+
+    /// <summary>Counts stored blob files under the given session's namespace (for orphan-cleanup assertions).</summary>
+    public int CountStoredBlobs(Guid sessionId)
+    {
+        string sessionDir = Path.Combine(BlobRoot, sessionId.ToString("N"));
+
+        return Directory.Exists(sessionDir) ? Directory.GetFiles(sessionDir).Length : 0;
     }
 
     async Task IAsyncLifetime.InitializeAsync()
@@ -41,5 +53,10 @@ public sealed class RagBookApiFactory : WebApplicationFactory<Program>, IAsyncLi
     {
         await _container.DisposeAsync();
         await base.DisposeAsync();
+
+        if (Directory.Exists(BlobRoot))
+        {
+            Directory.Delete(BlobRoot, recursive: true);
+        }
     }
 }

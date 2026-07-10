@@ -29,6 +29,16 @@ namespace RagBook.Infrastructure.Migrations.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<int>("ChunkCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("chunk_count");
+
+                    b.Property<string>("ContentType")
+                        .HasColumnType("text")
+                        .HasColumnName("content_type");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -38,6 +48,14 @@ namespace RagBook.Infrastructure.Migrations.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("created_by");
+
+                    b.Property<string>("FileName")
+                        .HasColumnType("text")
+                        .HasColumnName("file_name");
+
+                    b.Property<Guid?>("FolderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("folder_id");
 
                     b.Property<DateTimeOffset?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
@@ -60,16 +78,81 @@ namespace RagBook.Infrastructure.Migrations.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("status");
 
+                    b.Property<string>("StoragePath")
+                        .HasColumnType("text")
+                        .HasColumnName("storage_path");
+
+                    b.Property<DateTimeOffset?>("UploadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at");
+
                     b.Property<Guid>("UserSessionId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_session_id");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("FolderId")
+                        .HasDatabaseName("ix_documents_folder_id");
+
                     b.HasIndex("UserSessionId")
                         .HasDatabaseName("ix_documents_user_session_id");
 
                     b.ToTable("documents", (string)null);
+                });
+
+            modelBuilder.Entity("RagBook.Modules.Folders.Domain.Folder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("modified_by");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("path");
+
+                    b.Property<Guid>("UserSessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_session_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("UserSessionId")
+                        .HasDatabaseName("ix_folders_user_session_id");
+
+                    b.ToTable("folders", (string)null);
                 });
 
             modelBuilder.Entity("RagBook.Modules.Session.Domain.SessionResource", b =>
@@ -114,6 +197,22 @@ namespace RagBook.Infrastructure.Migrations.Migrations
                         .HasDatabaseName("ix_session_resources_user_session_id");
 
                     b.ToTable("session_resources", (string)null);
+                });
+
+            modelBuilder.Entity("RagBook.Modules.Documents.Domain.Document", b =>
+                {
+                    b.HasOne("RagBook.Modules.Folders.Domain.Folder", null)
+                        .WithMany()
+                        .HasForeignKey("FolderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("RagBook.Modules.Folders.Domain.Folder", b =>
+                {
+                    b.HasOne("RagBook.Modules.Folders.Domain.Folder", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 #pragma warning restore 612, 618
         }

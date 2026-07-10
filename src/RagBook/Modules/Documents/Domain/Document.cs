@@ -6,10 +6,12 @@ using RagBook.Shared.Sessions;
 namespace RagBook.Modules.Documents.Domain;
 
 /// <summary>
-/// A session-owned document. US-05 keeps this minimal — only what the quota needs to count and size
-/// (<see cref="SizeBytes"/>, <see cref="Status"/>, <see cref="Origin"/>). US-04 (upload) extends the
-/// same aggregate/table with filename, storage pointer, and richer processing. <see cref="UserSessionId"/>
-/// is stamped centrally on insert (never in handlers); isolation is enforced at the query boundary.
+/// A session-owned document. US-05 introduced it minimally (<see cref="SizeBytes"/>,
+/// <see cref="Status"/>, <see cref="Origin"/> — what the quota counts). US-04 (upload) extends the same
+/// aggregate/table with the folder association and file metadata (<see cref="FolderId"/>,
+/// <see cref="FileName"/>, <see cref="ContentType"/>, <see cref="StoragePath"/>,
+/// <see cref="UploadedAt"/>, <see cref="ChunkCount"/>). <see cref="UserSessionId"/> is stamped centrally
+/// on insert (never in handlers); isolation is enforced at the query boundary.
 /// </summary>
 public sealed class Document : ISessionOwned, IAuditable
 {
@@ -19,6 +21,27 @@ public sealed class Document : ISessionOwned, IAuditable
         SizeBytes = sizeBytes;
         Status = status;
         Origin = origin;
+    }
+
+    private Document(
+        Guid id,
+        long sizeBytes,
+        Guid? folderId,
+        string fileName,
+        string contentType,
+        string storagePath,
+        DateTimeOffset uploadedAt)
+    {
+        Id = id;
+        SizeBytes = sizeBytes;
+        Status = DocumentStatus.Processing;
+        Origin = DocumentOrigin.User;
+        FolderId = folderId;
+        FileName = fileName;
+        ContentType = contentType;
+        StoragePath = storagePath;
+        UploadedAt = uploadedAt;
+        ChunkCount = 0;
     }
 
     // Required by EF Core for materialization.
@@ -37,6 +60,24 @@ public sealed class Document : ISessionOwned, IAuditable
 
     /// <summary>How the document entered the session; <see cref="DocumentOrigin.Demo"/> is excluded from quota.</summary>
     public DocumentOrigin Origin { get; private set; }
+
+    /// <summary>Owning folder, or <c>null</c> for a root document (US-04 AC-4). Null on US-05-minimal rows.</summary>
+    public Guid? FolderId { get; private set; }
+
+    /// <summary>Display file name incl. extension, post duplicate-suffix (US-04 AC-5). Null on US-05-minimal rows.</summary>
+    public string? FileName { get; private set; }
+
+    /// <summary>Detected canonical content type (never the client-declared value). Null on US-05-minimal rows.</summary>
+    public string? ContentType { get; private set; }
+
+    /// <summary>Opaque pointer to the stored binary (outside the relational DB). Null on US-05-minimal rows.</summary>
+    public string? StoragePath { get; private set; }
+
+    /// <summary>When the upload was recorded (stamped via <c>TimeProvider</c>). Null on US-05-minimal rows.</summary>
+    public DateTimeOffset? UploadedAt { get; private set; }
+
+    /// <summary>Number of chunks produced by background processing (US-06); zero at upload.</summary>
+    public int ChunkCount { get; private set; }
 
     /// <inheritdoc />
     public Guid UserSessionId { get; private set; }
@@ -68,5 +109,43 @@ public sealed class Document : ISessionOwned, IAuditable
         }
 
         return new Document(Guid.NewGuid(), sizeBytes, DocumentStatus.Processing, origin);
+    }
+
+    /// <summary>
+    /// Creates a document from a completed upload (US-04): <see cref="DocumentStatus.Processing"/>,
+    /// <see cref="DocumentOrigin.User"/>, with the folder association and file metadata. Guards the
+    /// intrinsic invariants (non-empty size, non-blank name/type/storage pointer); the type, size, and
+    /// quota gates run in the handler/quota admit, not here. Returns a failed result rather than throwing.
+    /// </summary>
+    public static Result<Document> CreateUpload(
+        long sizeBytes,
+        string fileName,
+        string contentType,
+        Guid? folderId,
+        string storagePath,
+        DateTimeOffset uploadedAt)
+    {
+        if (sizeBytes <= 0)
+        {
+            return DocumentErrors.EmptyFile;
+        }
+
+        if (string.IsNullOrWhiteSpace(fileName)
+            || string.IsNullOrWhiteSpace(contentType)
+            || string.IsNullOrWhiteSpace(storagePath))
+        {
+            return QuotaErrors.InvalidSize;
+        }
+
+        return new Document(Guid.NewGuid(), sizeBytes, folderId, fileName, contentType, storagePath, uploadedAt);
+    }
+
+    /// <summary>
+    /// Renames the file to a de-duplicated candidate (US-04 AC-5). Used by the upload repository when it
+    /// finds the first free suffix for the target folder under the session lock — before insert.
+    /// </summary>
+    public void RenameForSuffix(string deduplicatedFileName)
+    {
+        FileName = deduplicatedFileName;
     }
 }
