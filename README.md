@@ -163,6 +163,34 @@ The main view is one **folders + documents tree**, built with **`@angular/cdk` `
 - **Forward-looking `FailureReason`.** `documents.failure_reason` is a nullable column added here for the
   failed-document tooltip; **US-06 populates it** (until then a failed document shows a generic message).
 
+## Pipeline indeksowania (US-06)
+
+After an upload, a **durable Wolverine handler** reacts to the `DocumentUploaded` event and indexes the
+document in the background — the UI never blocks:
+
+```text
+DocumentUploaded → extract text (PdfPig / plain) + normalize
+                 → chunk (structural, ChunkingOptions: ~1000 chars, ~150 overlap; page number kept)
+                 → embed in batches (IEmbeddingProvider) → store chunks(pgvector) → Ready (chunk count)
+                                                                              ↘ (any failure) → Failed(reason)
+```
+
+- **One embedding model for the whole index.** `Embedding:*` config (`voyage-3.5`, dim `1024`, batch `64`,
+  retry `3`). The provider is behind `IEmbeddingProvider`: a **deterministic stand-in** is used when no
+  `Embedding:ApiKey` is set (dev/tests), the real **Voyage** driver when it is. **Changing the model or
+  dimension requires a full re-index** (indexing and querying must use the same model — US-14).
+- **Chunks + pgvector.** `chunks(id, document_id FK ON DELETE CASCADE, user_session_id, index, text,
+  page_number, embedding vector(1024))`, unique `(document_id, index)`, **HNSW** `vector_cosine_ops` index.
+  The `vector` column is written via raw SQL (a text→`vector` cast) because the pgvector EF plugin is
+  incompatible with EF Core 10; the extension is enabled in the migration.
+- **Resilient & idempotent.** Transient provider errors **retry with backoff** (bounded), then the
+  document ends `Failed` with a provider reason and **no partial index**. Re-processing the same document
+  **replaces** its chunks (no duplicates); a document deleted mid-run is skipped quietly. The background
+  worker bridges the session from the document (it has no HTTP session) so chunks stay session-scoped.
+- **Live status.** A status change is pushed over **SSE** (`GET /api/documents/status/stream`); the
+  Angular `DocumentStatusStore` refreshes the tree so a row flips processing → ready/failed without a
+  reload.
+
 ### Known limitations
 
 - Orphaned data from expired/deleted sessions is **not** garbage-collected (out of scope for the MVP;

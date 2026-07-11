@@ -131,3 +131,20 @@ by Aspire); running the API standalone requires that connection string in config
   folder mutations reuse `FolderTreeStore` **and must call `TreeStore.refresh()`** (the tree reads from
   `/api/tree`, not `/api/folders`). Decimal size via `core/file-size.ts`. `DocumentUploadStore` now
   refreshes `TreeStore` (not `FolderTreeStore`) after an upload.
+- **Background indexing (US-06, `Documents/Processing`)**: durable Wolverine handler on `DocumentUploaded`
+  → extract (`ITextExtractor`: PdfPig / plain) → `StructuralChunker` (config `Chunking:*`, page numbers)
+  → embed in batches (`IEmbeddingProvider`) → `chunks`(pgvector) → `Document.MarkReady/MarkFailed`. The
+  worker has **no HTTP session**: it reads the target session-agnostically (`IgnoreQueryFilters`) then
+  `ISessionInitializer.Initialize(doc.session)` so chunks/updates stay session-scoped. **Embedding
+  provider** = deterministic `FakeEmbeddingProvider` unless `Embedding:ApiKey` set → `VoyageEmbeddingProvider`
+  (`voyage-3.5`/1024). **Retry is in the handler** (bounded, then terminal `Failed`), not Wolverine, so
+  it's testable; `IChunkRepository.ReplaceForDocumentAsync(Document, chunks)` = delete+insert+status in one
+  tx (idempotent, no-partial). **pgvector gotcha:** `Pgvector.EntityFrameworkCore` is incompatible with
+  EF Core 10 → EF **Ignores** `Chunk.Embedding`; the `embedding vector(1024)` column is written via raw SQL
+  (text→`vector` cast) and the migration `CREATE EXTENSION vector` + HNSW/unique via raw SQL; the model
+  snapshot must NOT contain `embedding` (or `MigrateAsync` throws PendingModelChanges). **Wolverine
+  durability** (`Wolverine:DurabilityEnabled`, default on) provisions its own tables via
+  `AddResourceSetupOnStartup`; tests set it **false** and invoke `ProcessDocumentHandler.Handle` **directly**
+  (seed docs WITHOUT publishing `DocumentUploaded`, else the in-memory bus double-processes). Status pushed
+  over **SSE** `GET /api/documents/status/stream` → Angular `DocumentStatusStore` refreshes the tree.
+  PdfPig pinned to `1.7.0-custom-5` (other NuGet versions have broken transitive deps).

@@ -10,6 +10,12 @@
     <PackageVersion Include="WolverineFx.Http" Version="6.16.0" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.16.0" />
     <PackageVersion Include="WolverineFx.FluentValidation" Version="6.16.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.16.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Processing (US-06) — vector store + PDF">
+    <PackageVersion Include="Pgvector" Version="0.3.2" />
+    <PackageVersion Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
   </ItemGroup>
 
   <ItemGroup Label="Validation">
