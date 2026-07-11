@@ -5,9 +5,11 @@ using RagBook.API.Sessions;
 using RagBook.Infrastructure;
 using JasperFx.CodeGeneration.Model;
 using RagBook.API.Messaging;
+using RagBook.Infrastructure.SharedContext.Providers.Anthropic;
 using RagBook.Infrastructure.SharedContext.Storage;
 using RagBook.Modules.Documents.Quota;
 using RagBook.Modules.Folders;
+using RagBook.Modules.Settings;
 using RagBook.Shared.Messaging;
 using RagBook.ServiceDefaults;
 using Wolverine;
@@ -21,6 +23,8 @@ builder.Services.Configure<SessionCookieOptions>(builder.Configuration.GetSectio
 builder.Services.Configure<QuotaOptions>(builder.Configuration.GetSection(QuotaOptions.SectionName));
 builder.Services.Configure<FolderOptions>(builder.Configuration.GetSection(FolderOptions.SectionName));
 builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection(FileStorageOptions.SectionName));
+builder.Services.Configure<ApiKeyStoreOptions>(builder.Configuration.GetSection(ApiKeyStoreOptions.SectionName));
+builder.Services.Configure<AnthropicOptions>(builder.Configuration.GetSection(AnthropicOptions.SectionName));
 
 builder.Services.AddApp();
 
@@ -60,6 +64,7 @@ app.MapQuotaEndpoints();
 app.MapFolderEndpoints();
 app.MapDocumentEndpoints();
 app.MapTreeEndpoints();
+app.MapSettingsEndpoints();
 
 await app.RunAsync();
 

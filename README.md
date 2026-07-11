@@ -163,8 +163,38 @@ The main view is one **folders + documents tree**, built with **`@angular/cdk` `
 - **Forward-looking `FailureReason`.** `documents.failure_reason` is a nullable column added here for the
   failed-document tooltip; **US-06 populates it** (until then a failed document shows a generic message).
 
+## Konfiguracja klucza AI — BYOK (US-02)
+
+Generation runs on the **user's own Anthropic key** (bring-your-own-key). The key is a secret, so it is
+handled deliberately:
+
+- **Never in the database.** The key lives **only** in a server-side session store (`IApiKeyStore` over
+  `IMemoryCache`), keyed by `UserSessionId` and expiring with the session (`ApiKeyStore:Ttl`, default 30
+  days). An app restart clears it — the user re-enters it. This is a conscious trade-off (constitution §VII).
+- **Validated on save, cheaply.** `POST /api/settings/api-key` proves the key is live via a
+  **non-generative** call to Anthropic's `GET /v1/models` (zero token cost) behind the `IApiKeyValidator`
+  seam, wrapped in a resilient `HttpClient`. The outcome is three-way: accepted → stored + `active`;
+  rejected → `settings.invalid_api_key` (400); provider unreachable → `settings.validation_unavailable`
+  (503, transient — the user is told to retry, not that the key is bad). Malformed/empty keys are rejected
+  locally with the same `settings.invalid_api_key` code, without an upstream call.
+- **Abuse-throttled.** Saves are rate-limited per session (`ApiKeyStore:ThrottleMaxAttempts` in
+  `ThrottleWindow`); over the limit → `settings.too_many_attempts` (429) **before** any paid upstream call.
+- **Mask only.** `GET /api/settings/api-key` returns `none` or `active` + a mask (`sk-ant-api03-…XXXX`) —
+  the full key is **never** returned by the API, rendered in the UI, or written to logs (proven by an
+  integration test scanning captured logs and every response body). All settings responses are
+  `Cache-Control: no-store`. `DELETE` removes the key (idempotent) and re-locks generation.
+- **Generation guard.** `IAnthropicClientFactory.CreateForSession()` fails `settings.api_key_missing` (401)
+  when no key is set — the seam future chat (US-14) calls before generating. The Angular shell locks the
+  (future) question field and points to settings whenever the status is `none`.
+- **First provider seam.** This is the repo's first external provider and first cache; the
+  `IApiKeyValidator` / `IAnthropicClientFactory` seams (with resilience + in-memory test fakes) establish
+  the pattern US-06/US-14 follow.
+
 ### Known limitations
 
+- The BYOK key store is **process-local** (`IMemoryCache`). On a multi-instance deployment a request could
+  reach an instance without the key; swap `IApiKeyStore` for an `IDistributedCache`-backed implementation
+  when scaling out (the seam makes it a one-class change). MVP is effectively single-instance for the key.
 - Orphaned data from expired/deleted sessions is **not** garbage-collected (out of scope for the MVP;
   no GDPR-style cleanup yet).
 - **Cascade folder delete** is not built — only empty folders can be deleted (US-09); deleting a folder

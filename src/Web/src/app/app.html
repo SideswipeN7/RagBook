@@ -16,6 +16,12 @@
       </p>
       <p class="shell__muted">Documents in this session: {{ session.resourceCount }}</p>
       <app-quota-bar />
+      <app-api-key-settings />
+      @if (chatLocked()) {
+        <p class="shell__notice" role="status">
+          Skonfiguruj klucz API powyżej, aby odblokować czat.
+        </p>
+      }
       <app-document-upload />
       <app-document-tree />
     </section>

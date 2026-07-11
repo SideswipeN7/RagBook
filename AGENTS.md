@@ -131,3 +131,22 @@ by Aspire); running the API standalone requires that connection string in config
   folder mutations reuse `FolderTreeStore` **and must call `TreeStore.refresh()`** (the tree reads from
   `/api/tree`, not `/api/folders`). Decimal size via `core/file-size.ts`. `DocumentUploadStore` now
   refreshes `TreeStore` (not `FolderTreeStore`) after an upload.
+- **BYOK key (US-02, `Settings` module)**: the user's Anthropic key lives **only** in `IApiKeyStore` over
+  `IMemoryCache` (first cache in the repo — `AddMemoryCache()`), keyed by session, TTL from
+  `ApiKeyStoreOptions` via `TimeProvider` (the store keeps an explicit `ExpiresAt` **and** a cache
+  relative-expiry backstop — the explicit one is the authoritative, testable TTL; do NOT set the cache's
+  absolute expiry from a fake clock, it evicts immediately against wall-clock). **Never in the DB, never
+  logged, mask-only in responses** (`ApiKeyMask` → `sk-ant-api03-…XXXX`); all `/api/settings/api-key`
+  responses are `no-store`. Validation is a **non-generative** `GET /v1/models` behind `IApiKeyValidator`
+  (first external-provider seam — resilient named `HttpClient` + `AddStandardResilienceHandler`; tests swap
+  an in-memory fake, no test hits Anthropic) returning three-way `Valid|Rejected|Unavailable` →
+  `active` / `settings.invalid_api_key` (400) / `settings.validation_unavailable` (503). Empty/malformed
+  keys are rejected **in the handler** (same `invalid_api_key` code) — NOT via FluentValidation (which
+  would emit a generic validation code the frontend can't map). Per-session throttle (`IApiKeyThrottle`,
+  fixed window) is checked **before** the upstream call → `settings.too_many_attempts` (429). Generation
+  guard = `IAnthropicClientFactory.CreateForSession()` → `settings.api_key_missing` (401) when no key
+  (US-14 consumes it). Added two **additive** shared `ErrorType` values — `RateLimited`→429,
+  `Unavailable`→503 (+ `ErrorStatusMapper`). Integration tests swap the validator via
+  `ConfigureTestServices` in the factory's **own** `ConfigureWebHost` (NOT a derived `WithWebHostBuilder`
+  host — that re-runs Wolverine codegen and fails handler construction). Frontend: `ApiKeyStore` (signals)
+  + `app-api-key-settings` in the shell (no router yet); `chatLocked` computed gates the future chat UI.
