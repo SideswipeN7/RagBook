@@ -120,3 +120,14 @@ by Aspire); running the API standalone requires that connection string in config
   `IEventPublisher` abstraction (impl `WolverineEventPublisher` in the API host — Core never references
   Wolverine); the Documents module reads folder existence through its own `IFolderReference` seam (no
   Core→Folders reference).
+- **Folder+document tree (US-07, `Tree` module)**: `GET /api/tree` returns folders + documents in **one**
+  response via the single **`ITreeReader`** seam (impl `TreeReader` in Infrastructure runs **two**
+  session-scoped `AsNoTracking` queries — folders `LOWER(name)`, documents `Origin != Demo` newest-first;
+  no N+1). The Tree slice references **neither** the Folders nor the Documents module (its own DTOs
+  `TreeFolder`/`TreeDocument`, §I). Added a nullable **`documents.failure_reason`** column here
+  (forward-looking — **US-06 fills it**; US-07 only displays, generic fallback when null). **Frontend:** a
+  unified **`@angular/cdk` `cdk-tree`** (`app-document-tree`) **replaced** the folders-only
+  `app-folder-tree`; `TreeStore` (signals) composes the nested tree + owns expansion in `sessionStorage`;
+  folder mutations reuse `FolderTreeStore` **and must call `TreeStore.refresh()`** (the tree reads from
+  `/api/tree`, not `/api/folders`). Decimal size via `core/file-size.ts`. `DocumentUploadStore` now
+  refreshes `TreeStore` (not `FolderTreeStore`) after an upload.

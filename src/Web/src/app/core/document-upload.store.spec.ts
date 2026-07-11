@@ -28,7 +28,7 @@ describe('DocumentUploadStore', () => {
     expect(upload.request.body instanceof FormData).toBeTrue();
     upload.flush({ id: 'x', fileName: 'umowa.pdf', status: 'Processing' });
 
-    controller.expectOne('/api/folders').flush([]);
+    controller.expectOne('/api/tree').flush({ folders: [], documents: [] });
     controller.expectOne('/api/quota').flush({});
     expect(store.progress()).toBeNull();
   });
@@ -39,7 +39,7 @@ describe('DocumentUploadStore', () => {
     const upload = controller.expectOne('/api/documents');
     expect((upload.request.body as FormData).get('folderId')).toBe('folder-1');
     upload.flush({ id: 'x' });
-    controller.expectOne('/api/folders').flush([]);
+    controller.expectOne('/api/tree').flush({ folders: [], documents: [] });
     controller.expectOne('/api/quota').flush({});
   });
 

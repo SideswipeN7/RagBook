@@ -79,6 +79,13 @@ public sealed class Document : ISessionOwned, IAuditable
     /// <summary>Number of chunks produced by background processing (US-06); zero at upload.</summary>
     public int ChunkCount { get; private set; }
 
+    /// <summary>
+    /// Human-readable reason a document's processing failed. Null unless <see cref="Status"/> is
+    /// <see cref="DocumentStatus.Failed"/> with a recorded reason. Added by US-07 (display only);
+    /// <b>populated by US-06</b> on a failed transition.
+    /// </summary>
+    public string? FailureReason { get; private set; }
+
     /// <inheritdoc />
     public Guid UserSessionId { get; private set; }
 

@@ -1,0 +1,22 @@
+<span class="row">
+  <span class="row__name" [title]="node().fileName">{{ node().fileName }}</span>
+  <span class="row__size">{{ node().displaySize }}</span>
+
+  @switch (node().status) {
+    @case ('Processing') {
+      <span class="row__badge row__badge--processing" role="status" aria-label="Przetwarzanie">
+        <span class="row__spinner" aria-hidden="true"></span> Przetwarzanie…
+      </span>
+    }
+    @case ('Failed') {
+      <span class="row__badge row__badge--failed" [title]="node().displayFailureReason" role="img" aria-label="Błąd przetwarzania">
+        ⚠ Błąd
+      </span>
+    }
+    @case ('Ready') {
+      <span class="row__badge row__badge--ready">Gotowe · {{ node().chunkCount }} fragm.</span>
+    }
+  }
+
+  <span class="row__date">{{ node().uploadedAt | date: 'short' }}</span>
+</span>

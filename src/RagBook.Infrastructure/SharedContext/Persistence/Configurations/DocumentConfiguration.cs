@@ -31,6 +31,9 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.Property(document => document.UploadedAt).HasColumnName("uploaded_at");
         builder.Property(document => document.ChunkCount).HasColumnName("chunk_count").IsRequired().HasDefaultValue(0);
 
+        // US-07 display field, forward-looking — populated by US-06 on a failed transition.
+        builder.Property(document => document.FailureReason).HasColumnName("failure_reason");
+
         builder.HasIndex(document => document.FolderId).HasDatabaseName("ix_documents_folder_id");
 
         // A document points at a folder; the folder cannot be deleted while it holds documents (US-09 AC-5).

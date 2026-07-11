@@ -1,0 +1,88 @@
+<section class="tree" aria-label="Foldery i dokumenty">
+  @if (isEmpty()) {
+    <div class="tree__empty" role="status">
+      <p class="tree__empty-title">Twoja baza wiedzy jest pusta.</p>
+      <p class="tree__empty-cta">Wgraj pierwszy dokument powyżej, aby zacząć — albo wypróbuj tryb demo.</p>
+    </div>
+
+    <section class="tree__demo" aria-label="Tryb demo">
+      <p class="tree__demo-note">Tryb demo (wkrótce) — przykładowe dokumenty tylko do odczytu.</p>
+    </section>
+  } @else {
+    <div class="tree__toolbar">
+      <button type="button" class="tree__btn" (click)="startCreate(null)">Nowy folder</button>
+    </div>
+
+    @if (creatingUnder() === null) {
+      <div class="tree__inline">
+        <input #rootName class="tree__input" placeholder="Nazwa folderu" (keyup.enter)="submitCreate(rootName.value)" />
+        <button type="button" class="tree__btn" (click)="submitCreate(rootName.value)">Dodaj</button>
+        <button type="button" class="tree__btn tree__btn--ghost" (click)="cancelInline()">Anuluj</button>
+      </div>
+    }
+
+    @if (errorMessage(); as message) {
+      <p class="tree__error" role="alert">{{ message }}</p>
+    }
+
+    <cdk-tree [dataSource]="roots()" [treeControl]="treeControl">
+      <!-- Document leaf -->
+      <cdk-tree-node *cdkTreeNodeDef="let node" class="tree__node tree__node--leaf">
+        <app-document-row [node]="node" />
+      </cdk-tree-node>
+
+      <!-- Folder node -->
+      <cdk-nested-tree-node *cdkTreeNodeDef="let node; when: isFolder" class="tree__node">
+        <div class="tree__row">
+          <button
+            type="button"
+            class="tree__toggle"
+            cdkTreeNodeToggle
+            [attr.aria-expanded]="treeControl.isExpanded(node)"
+            aria-label="Rozwiń/zwiń folder"
+          >
+            {{ treeControl.isExpanded(node) ? '▾' : '▸' }}
+          </button>
+
+          @if (renamingId() === node.id) {
+            <input #renameInput class="tree__input" [value]="node.name" (keyup.enter)="submitRename(node.id, renameInput.value)" />
+            <button type="button" class="tree__btn" (click)="submitRename(node.id, renameInput.value)">Zapisz</button>
+            <button type="button" class="tree__btn tree__btn--ghost" (click)="cancelInline()">Anuluj</button>
+          } @else {
+            <span class="tree__folder-name" [title]="node.name">{{ node.name }}</span>
+            <span class="tree__actions">
+              @if (node.depth < maxDepth) {
+                <button type="button" class="tree__btn tree__btn--ghost" (click)="startCreate(node.id)">Nowy folder</button>
+              }
+              <button type="button" class="tree__btn tree__btn--ghost" (click)="startRename(node.id)">Zmień nazwę</button>
+              <button type="button" class="tree__btn tree__btn--ghost" (click)="askDelete(node.id)">Usuń</button>
+            </span>
+          }
+        </div>
+
+        @if (confirmingDeleteId() === node.id) {
+          <div class="tree__confirm" role="group" aria-label="Potwierdź usunięcie">
+            <span>Usunąć folder „{{ node.name }}”?</span>
+            <button type="button" class="tree__btn" (click)="confirmDelete(node.id)">Tak, usuń</button>
+            <button type="button" class="tree__btn tree__btn--ghost" (click)="cancelInline()">Nie</button>
+          </div>
+        }
+
+        @if (creatingUnder() === node.id) {
+          <div class="tree__inline">
+            <input #childName class="tree__input" placeholder="Nazwa folderu" (keyup.enter)="submitCreate(childName.value)" />
+            <button type="button" class="tree__btn" (click)="submitCreate(childName.value)">Dodaj</button>
+            <button type="button" class="tree__btn tree__btn--ghost" (click)="cancelInline()">Anuluj</button>
+          </div>
+        }
+
+        <div class="tree__children" [class.tree__children--hidden]="!treeControl.isExpanded(node)" role="group">
+          @if (!hasContent(node)) {
+            <p class="tree__empty-folder">Pusty folder</p>
+          }
+          <ng-container cdkTreeNodeOutlet></ng-container>
+        </div>
+      </cdk-nested-tree-node>
+    </cdk-tree>
+  }
+</section>

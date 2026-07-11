@@ -145,6 +145,24 @@ Visitors upload **PDF/TXT/Markdown** files into a folder (or the root) via `POST
   background processing (US-06). **Frontend:** a signals `DocumentUploadStore` + `app-document-upload`
   (button + drag-and-drop + progress + client pre-validation) refreshes the tree and quota without a reload.
 
+## Drzewo dokumentów (US-07)
+
+The main view is one **folders + documents tree**, built with **`@angular/cdk` `cdk-tree`**:
+
+- **One request, no N+1.** `GET /api/tree` returns the session's folders and documents in a single
+  response — the Infrastructure `TreeReader` runs exactly two session-scoped queries (folders `ORDER BY
+  LOWER(name)`, documents `ORDER BY uploaded_at DESC`) behind the Tree module's single `ITreeReader`
+  seam, so the Tree slice references neither the Folders nor the Documents module.
+- **Client composition.** A signals `TreeStore` composes the nested tree from the two flat lists
+  (folders A→Z, documents newest-first; root documents at the top). Folder create/rename/delete reuse
+  `FolderTreeStore` and then call `TreeStore.refresh()` so the tree never goes stale.
+- **Rows.** Each document shows name (truncated + full-name tooltip), a **decimal** size (`B`/`KB`/`MB`,
+  1 dp), a status badge (processing → spinner, failed → error with the reason on hover, ready → chunk
+  count), and the upload date. Expansion state lives in `sessionStorage` (UI-only); an empty session
+  shows an upload call-to-action + a demo pointer.
+- **Forward-looking `FailureReason`.** `documents.failure_reason` is a nullable column added here for the
+  failed-document tooltip; **US-06 populates it** (until then a failed document shows a generic message).
+
 ### Known limitations
 
 - Orphaned data from expired/deleted sessions is **not** garbage-collected (out of scope for the MVP;

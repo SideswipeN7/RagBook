@@ -7,6 +7,7 @@ using RagBook.Infrastructure.SharedContext.Storage;
 using RagBook.Modules.Documents.Domain;
 using RagBook.Modules.Folders.Domain;
 using RagBook.Modules.Session.Domain;
+using RagBook.Modules.Tree.Domain;
 using RagBook.Shared.Persistence;
 using RagBook.Shared.Sessions;
 
@@ -57,6 +58,9 @@ public static class DependencyInjection
         services.AddScoped<IFolderReference, FolderReference>();
         services.AddScoped<IDocumentUploadRepository, DocumentUploadRepository>();
         services.AddScoped<IFileStorage, LocalFileStorage>();
+
+        // US-07 tree read — one seam composing folders + documents in two session-scoped queries.
+        services.AddScoped<ITreeReader, TreeReader>();
 
         return services;
     }
