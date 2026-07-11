@@ -155,4 +155,26 @@ public sealed class Document : ISessionOwned, IAuditable
     {
         FileName = deduplicatedFileName;
     }
+
+    /// <summary>
+    /// Marks the document successfully processed (US-06): <see cref="DocumentStatus.Ready"/> with the
+    /// produced <paramref name="chunkCount"/>, clearing any prior failure reason.
+    /// </summary>
+    public void MarkReady(int chunkCount)
+    {
+        Status = DocumentStatus.Ready;
+        ChunkCount = chunkCount;
+        FailureReason = null;
+    }
+
+    /// <summary>
+    /// Marks the document failed to process (US-06): <see cref="DocumentStatus.Failed"/> with a
+    /// human-readable <paramref name="reason"/> and zero chunks.
+    /// </summary>
+    public void MarkFailed(string reason)
+    {
+        Status = DocumentStatus.Failed;
+        FailureReason = reason;
+        ChunkCount = 0;
+    }
 }

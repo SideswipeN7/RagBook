@@ -5,6 +5,8 @@ using RagBook.Modules.Folders.Domain;
 using RagBook.Modules.Session.Domain;
 using RagBook.Shared.Sessions;
 
+// Chunk is referenced via the DbSet below.
+
 namespace RagBook.Infrastructure.SharedContext.Persistence;
 
 /// <summary>
@@ -23,6 +25,9 @@ public sealed class RagBookDbContext(DbContextOptions<RagBookDbContext> options,
 
     /// <summary>Session-owned folders forming the document tree (US-09).</summary>
     public DbSet<Folder> Folders => Set<Folder>();
+
+    /// <summary>Indexed chunks of documents with their embedding vectors (US-06).</summary>
+    public DbSet<Chunk> Chunks => Set<Chunk>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)

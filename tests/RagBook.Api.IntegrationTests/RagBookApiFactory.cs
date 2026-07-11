@@ -30,6 +30,10 @@ public sealed class RagBookApiFactory : WebApplicationFactory<Program>, IAsyncLi
         builder.UseEnvironment("Development");
         builder.UseSetting("ConnectionStrings:ragbookdb", _container.GetConnectionString());
         builder.UseSetting("FileStorage:RootPath", BlobRoot);
+
+        // Tests invoke the processing handler directly (not via the bus), so Wolverine durability +
+        // envelope-table provisioning are unnecessary and kept off to isolate the test host (US-06).
+        builder.UseSetting("Wolverine:DurabilityEnabled", "false");
     }
 
     /// <summary>Counts stored blob files under the given session's namespace (for orphan-cleanup assertions).</summary>

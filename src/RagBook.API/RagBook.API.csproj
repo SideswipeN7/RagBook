@@ -10,6 +10,7 @@
     <PackageReference Include="WolverineFx.Http" />
     <PackageReference Include="WolverineFx.FluentValidation" />
     <PackageReference Include="WolverineFx.RuntimeCompilation" />
+    <PackageReference Include="WolverineFx.Postgresql" />
   </ItemGroup>
 
   <ItemGroup>
