@@ -59,6 +59,7 @@ app.MapResourceEndpoints();
 app.MapQuotaEndpoints();
 app.MapFolderEndpoints();
 app.MapDocumentEndpoints();
+app.MapTreeEndpoints();
 
 await app.RunAsync();
 

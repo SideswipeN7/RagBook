@@ -1,0 +1,72 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+
+  &__name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9375rem;
+    color: var(--color-body-strong);
+  }
+
+  &__size {
+    flex: 0 0 auto;
+    font-size: 0.8125rem;
+    color: var(--color-body-muted);
+  }
+
+  &__date {
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    color: var(--color-body-muted);
+  }
+
+  &__badge {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 0 var(--space-xs);
+    border-radius: var(--radius-xs);
+    font-size: 0.75rem;
+
+    &--ready {
+      color: var(--color-primary);
+    }
+
+    &--processing {
+      color: var(--color-body-muted);
+    }
+
+    &--failed {
+      color: var(--color-error);
+      cursor: help;
+    }
+  }
+
+  &__spinner {
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--color-hairline);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    display: inline-block;
+    animation: row-spin 0.7s linear infinite;
+  }
+}
+
+@keyframes row-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,7 +1,7 @@
 import { HttpErrorResponse, HttpClient, HttpEventType } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { FolderTreeStore } from './folder-tree.store';
 import { QuotaStore } from './quota.store';
+import { TreeStore } from './tree.store';
 
 /** Client-side pre-validation limits (a convenience — the server is the authority, US-04 FR-015). */
 export const MAX_UPLOAD_MB = 10;
@@ -42,7 +42,7 @@ export function preValidate(file: File): string | null {
 @Injectable({ providedIn: 'root' })
 export class DocumentUploadStore {
   private readonly http = inject(HttpClient);
-  private readonly folders = inject(FolderTreeStore);
+  private readonly tree = inject(TreeStore);
   private readonly quota = inject(QuotaStore);
 
   /** Upload progress as a percentage, or `null` when no upload is in flight. */
@@ -72,7 +72,7 @@ export class DocumentUploadStore {
           this.progress.set(Math.round((100 * event.loaded) / event.total));
         } else if (event.type === HttpEventType.Response) {
           this.progress.set(null);
-          this.folders.refresh();
+          this.tree.refresh();
           this.quota.refresh();
         }
       },
