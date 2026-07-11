@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<IFolderFileProbe, DocumentFolderFileProbe>();
         services.AddScoped<IFolderReference, FolderReference>();
         services.AddScoped<IDocumentUploadRepository, DocumentUploadRepository>();
+        services.AddScoped<IDocumentDeletionRepository, DocumentDeletionRepository>();
         services.AddScoped<IFileStorage, LocalFileStorage>();
 
         // US-07 tree read — one seam composing folders + documents in two session-scoped queries.

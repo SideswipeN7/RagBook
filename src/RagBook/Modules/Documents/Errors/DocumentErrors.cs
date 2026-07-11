@@ -20,6 +20,10 @@ public static class DocumentErrors
     public static readonly Error EmptyFile =
         Error.Validation("document.empty_file", "The file is empty.");
 
+    /// <summary>No such document in the current session (incl. a cross-session id or an already-deleted one — US-08).</summary>
+    public static readonly Error NotFound =
+        Error.NotFound("document.not_found", "The document does not exist.");
+
     /// <summary>
     /// The target folder does not exist in the current session (FR-006). Reuses the stable
     /// <c>folder.not_found</c> code so the client sees one not-found contract, without the Documents

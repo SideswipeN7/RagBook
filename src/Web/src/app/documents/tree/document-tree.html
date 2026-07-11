@@ -28,7 +28,18 @@
     <cdk-tree [dataSource]="roots()" [treeControl]="treeControl">
       <!-- Document leaf -->
       <cdk-tree-node *cdkTreeNodeDef="let node" class="tree__node tree__node--leaf">
-        <app-document-row [node]="node" />
+        <div class="tree__row">
+          <app-document-row [node]="node" />
+          <button type="button" class="tree__btn tree__btn--ghost" (click)="askDeleteDocument(node.id)">Usuń</button>
+        </div>
+
+        @if (confirmingDeleteDocumentId() === node.id) {
+          <div class="tree__confirm" role="group" aria-label="Potwierdź usunięcie dokumentu">
+            <span>Usunąć dokument „{{ node.fileName }}”?</span>
+            <button type="button" class="tree__btn" (click)="confirmDeleteDocument(node.id)">Tak, usuń</button>
+            <button type="button" class="tree__btn tree__btn--ghost" (click)="cancelInline()">Nie</button>
+          </div>
+        }
       </cdk-tree-node>
 
       <!-- Folder node -->

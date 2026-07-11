@@ -148,3 +148,14 @@ by Aspire); running the API standalone requires that connection string in config
   (seed docs WITHOUT publishing `DocumentUploaded`, else the in-memory bus double-processes). Status pushed
   over **SSE** `GET /api/documents/status/stream` → Angular `DocumentStatusStore` refreshes the tree.
   PdfPig pinned to `1.7.0-custom-5` (other NuGet versions have broken transitive deps).
+- **Delete document (US-08, `Documents/Features/DeleteDocument`)**: `DELETE /api/documents/{id}` →
+  `IDocumentDeletionRepository.DeleteAsync(id)` (Infrastructure): session-scoped tracked load (null →
+  `false` → `document.not_found`/404), **transactional row delete → chunks cascade at the DB** (US-06 FK) →
+  commit, **then best-effort `IFileStorage.DeleteAsync`** in try/catch + `ILogger` warning (orphan
+  tolerated, FR-004). Handler is trivial (`bool → Result`). Cross-session / repeat delete → 404
+  (idempotent). Delete-during-processing relies on the US-06 quiet abort. Frontend: `DocumentActionsStore.delete`
+  (DELETE → refresh Tree+Quota) + a **separate** document-leaf inline confirm in `app-document-tree`
+  (`confirmingDeleteDocumentId`, distinct from the folder confirm). **Testing best-effort blob tolerance**:
+  do NOT use `WithWebHostBuilder`+`ConfigureTestServices` (Wolverine codegen fails to resolve the handler in
+  the derived host) — construct `DocumentDeletionRepository` directly with a throwing `IFileStorage` stub +
+  `NullLogger`.
