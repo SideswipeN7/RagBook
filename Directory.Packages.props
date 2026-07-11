@@ -21,6 +21,10 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.9" />
   </ItemGroup>
 
+  <ItemGroup Label="Caching">
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.9" />
+  </ItemGroup>
+
   <ItemGroup Label="Data access">
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9" />

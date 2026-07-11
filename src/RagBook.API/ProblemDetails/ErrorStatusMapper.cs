@@ -16,6 +16,8 @@ public static class ErrorStatusMapper
             ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
             ErrorType.Forbidden => StatusCodes.Status403Forbidden,
             ErrorType.Unexpected => StatusCodes.Status500InternalServerError,
+            ErrorType.RateLimited => StatusCodes.Status429TooManyRequests,
+            ErrorType.Unavailable => StatusCodes.Status503ServiceUnavailable,
             ErrorType.Failure => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status400BadRequest,
         };

@@ -35,4 +35,22 @@ public sealed record Error(string Code, string Message, ErrorType Type)
     {
         return new Error(code, message, ErrorType.Unexpected);
     }
+
+    /// <summary>Creates an <see cref="ErrorType.Unauthorized"/> error.</summary>
+    public static Error Unauthorized(string code, string message)
+    {
+        return new Error(code, message, ErrorType.Unauthorized);
+    }
+
+    /// <summary>Creates an <see cref="ErrorType.RateLimited"/> error.</summary>
+    public static Error RateLimited(string code, string message)
+    {
+        return new Error(code, message, ErrorType.RateLimited);
+    }
+
+    /// <summary>Creates an <see cref="ErrorType.Unavailable"/> error.</summary>
+    public static Error Unavailable(string code, string message)
+    {
+        return new Error(code, message, ErrorType.Unavailable);
+    }
 }

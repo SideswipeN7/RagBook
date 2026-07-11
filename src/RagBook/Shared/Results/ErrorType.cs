@@ -26,4 +26,10 @@ public enum ErrorType
 
     /// <summary>Unexpected fault. Maps to a sanitized HTTP 500.</summary>
     Unexpected = 6,
+
+    /// <summary>Caller exceeded an allowed request rate. Maps to HTTP 429.</summary>
+    RateLimited = 7,
+
+    /// <summary>A dependency is temporarily unavailable; the caller may retry. Maps to HTTP 503.</summary>
+    Unavailable = 8,
 }

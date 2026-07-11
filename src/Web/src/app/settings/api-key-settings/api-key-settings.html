@@ -1,0 +1,47 @@
+<section class="apikey" aria-label="Klucz API (BYOK)">
+  <h2 class="apikey__title">Klucz API Anthropic</h2>
+
+  @switch (status()) {
+    @case ('unknown') {
+      <p class="apikey__muted" role="status">Sprawdzanie statusu klucza…</p>
+    }
+    @case ('active') {
+      <p class="apikey__status apikey__status--active" role="status">
+        Klucz aktywny: <code class="apikey__mask">{{ maskedKey() }}</code>
+      </p>
+
+      @if (confirmingDelete()) {
+        <div class="apikey__confirm" role="group" aria-label="Potwierdź usunięcie klucza">
+          <span>Usunąć zapisany klucz? Czat zostanie zablokowany.</span>
+          <button type="button" class="apikey__btn" (click)="confirmDelete()">Tak, usuń</button>
+          <button type="button" class="apikey__btn apikey__btn--ghost" (click)="cancelDelete()">Nie</button>
+        </div>
+      } @else {
+        <button type="button" class="apikey__btn apikey__btn--ghost" (click)="askDelete()">Usuń klucz</button>
+      }
+    }
+    @default {
+      <p class="apikey__muted">
+        Podaj własny klucz Anthropic (<code>sk-ant-…</code>). Jest przechowywany tylko w tej sesji i nigdy w bazie.
+      </p>
+      <div class="apikey__form">
+        <input
+          #keyInput
+          class="apikey__input"
+          type="password"
+          autocomplete="off"
+          placeholder="sk-ant-api03-…"
+          aria-label="Klucz API Anthropic"
+          (keyup.enter)="save(keyInput.value)"
+        />
+        <button type="button" class="apikey__btn" [disabled]="saving()" (click)="save(keyInput.value)">
+          {{ saving() ? 'Sprawdzanie…' : 'Zapisz' }}
+        </button>
+      </div>
+    }
+  }
+
+  @if (error(); as message) {
+    <p class="apikey__error" role="alert">{{ message }}</p>
+  }
+</section>

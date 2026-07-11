@@ -2,11 +2,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RagBook.Infrastructure.SharedContext.Interceptors;
 using RagBook.Infrastructure.SharedContext.Persistence;
+using RagBook.Infrastructure.SharedContext.Providers.Anthropic;
 using RagBook.Infrastructure.SharedContext.Sessions;
+using RagBook.Infrastructure.SharedContext.Settings;
 using RagBook.Infrastructure.SharedContext.Storage;
 using RagBook.Modules.Documents.Domain;
 using RagBook.Modules.Folders.Domain;
 using RagBook.Modules.Session.Domain;
+using RagBook.Modules.Settings.Domain;
 using RagBook.Modules.Tree.Domain;
 using RagBook.Shared.Persistence;
 using RagBook.Shared.Sessions;
@@ -61,6 +64,24 @@ public static class DependencyInjection
 
         // US-07 tree read — one seam composing folders + documents in two session-scoped queries.
         services.AddScoped<ITreeReader, TreeReader>();
+
+        // US-02 BYOK — the session-scoped API key lives only in memory (constitution §VII), never in
+        // the database. The validator reaches Anthropic through a resilient named HttpClient; the client
+        // factory guards generation with settings.api_key_missing when no key is present.
+        services.AddMemoryCache();
+        services.AddScoped<IApiKeyStore, MemoryCacheApiKeyStore>();
+        services.AddScoped<IApiKeyThrottle, MemoryCacheApiKeyThrottle>();
+        services.AddScoped<IApiKeyValidator, AnthropicApiKeyValidator>();
+        services.AddScoped<IAnthropicClientFactory, AnthropicClientFactory>();
+
+        services.AddHttpClient(AnthropicApiKeyValidator.HttpClientName)
+            .ConfigureHttpClient((provider, client) =>
+            {
+                AnthropicOptions anthropic = provider
+                    .GetRequiredService<Microsoft.Extensions.Options.IOptions<AnthropicOptions>>().Value;
+                client.BaseAddress = new Uri(anthropic.BaseUrl);
+            })
+            .AddStandardResilienceHandler();
 
         return services;
     }
