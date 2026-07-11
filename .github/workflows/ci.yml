@@ -1,0 +1,72 @@
+name: CI
+
+# Runs the full test suite on every pull request (any base branch, so stacked PRs are covered too)
+# and on pushes to master — the gate that must be green before a merge.
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+# Cancel superseded runs for the same ref to save minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (.NET) — build + Domain/Application/Integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore local tools (dotnet-ef)
+        run: dotnet tool restore
+
+      - name: Restore
+        run: dotnet restore RagBook.slnx
+
+      - name: Build
+        run: dotnet build RagBook.slnx -c Release --no-restore
+
+      - name: Domain tests
+        run: dotnet test tests/RagBook.Domain.Tests -c Release --no-build --logger "console;verbosity=normal"
+
+      - name: Application tests
+        run: dotnet test tests/RagBook.Application.Tests -c Release --no-build --logger "console;verbosity=normal"
+
+      # Testcontainers spins up pgvector/pgvector:pg17 against the runner's Docker engine.
+      - name: Integration tests (Testcontainers PostgreSQL)
+        run: dotnet test tests/RagBook.Api.IntegrationTests -c Release --no-build --logger "console;verbosity=normal"
+
+  frontend:
+    name: Frontend (Angular) — build + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/Web
+        run: npm ci
+
+      - name: Build
+        working-directory: src/Web
+        run: npm run build
+
+      # ubuntu-latest ships Google Chrome; ChromeHeadless runs with the sandbox enabled on GitHub-hosted VMs.
+      - name: Unit tests (Karma + ChromeHeadless)
+        working-directory: src/Web
+        run: npm test
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
