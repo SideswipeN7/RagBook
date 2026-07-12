@@ -97,6 +97,19 @@ public static class DependencyInjection
         // US-13 scoped retrieval — pre-filter (session + ready + scope) then pgvector cosine search.
         services.AddScoped<IScopedRetriever, ScopedRetriever>();
 
+        // US-14 answer generation — streaming Anthropic client. The generation HttpClient has NO standard
+        // total-request-timeout/retry: that would truncate or re-issue a live token stream (C1). Cancellation
+        // flows via the request token (client disconnect); transport failures map to provider-unavailable.
+        services.AddScoped<IAnswerGenerator, AnthropicAnswerGenerator>();
+        services.AddHttpClient(AnthropicAnswerGenerator.HttpClientName)
+            .ConfigureHttpClient((provider, client) =>
+            {
+                AnthropicOptions anthropic = provider
+                    .GetRequiredService<Microsoft.Extensions.Options.IOptions<AnthropicOptions>>().Value;
+                client.BaseAddress = new Uri(anthropic.BaseUrl);
+                client.Timeout = Timeout.InfiniteTimeSpan;
+            });
+
         return services;
     }
 

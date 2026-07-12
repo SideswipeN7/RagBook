@@ -102,6 +102,7 @@ app.MapDocumentEndpoints();
 app.MapTreeEndpoints();
 app.MapSettingsEndpoints();
 app.MapDocumentStatusEndpoints();
+app.MapChatEndpoints();
 
 await app.RunAsync();
 
