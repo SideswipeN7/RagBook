@@ -193,3 +193,19 @@ by Aspire); running the API standalone requires that connection string in config
   do NOT use `WithWebHostBuilder`+`ConfigureTestServices` (Wolverine codegen fails to resolve the handler in
   the derived host) — construct `DocumentDeletionRepository` directly with a throwing `IFileStorage` stub +
   `NullLogger`.
+- **RAG ask + streaming (US-14, `Chat` module)**: `POST /api/chat/ask` (question+scope in **body**, never
+  URL). Flow = validate (`chat.invalid_question`) → **key guard at the endpoint** via `IAnthropicClientFactory`
+  (`settings.api_key_missing`, before any provider call — endpoint composes Settings+Chat; Core `Chat` never
+  refs Settings) → `IAskQuestionPipeline` (retrieve US-13 → threshold `distance ≤ 1 − SimilarityThreshold` →
+  `PromptBuilder`) → `AskOutcome.Answerable | InsufficientGrounding`. **SSE is written manually from the
+  endpoint** (`event: …\ndata: …\n\n` + flush, like US-06 status stream) — NOT a Wolverine command (a token
+  stream isn't a single `Result`). **Peek the first delta before writing any bytes**: a generation failure
+  there is a ProblemDetails (headers unsent); after that it's an SSE `error` event (AC-5). `IAnswerGenerator`
+  (`AnthropicAnswerGenerator`) streams `/v1/messages` `stream:true`, parses `content_block_delta.text`; its
+  named `HttpClient` has **`Timeout=InfiniteTimeSpan` and NO `AddStandardResilienceHandler`** — the standard
+  total-timeout/retry would truncate/re-issue a live stream (C1). Tests swap `FakeStreamingAnswerGenerator`
+  (scripts deltas + pre/post-first-delta failures); the real generator is tested with a canned
+  `HttpMessageHandler`. Deterministic fake embeddings: a question repeating a chunk's text ⇒ distance ~0
+  (answerable); a different question ⇒ ~orthogonal ⇒ below threshold (insufficient). `GroundingPrompt.RefusalPhrase`
+  is the exact sentinel US-17 will detect. Codes: `chat.invalid_question`/`provider_rate_limited`/`provider_unavailable`
+  + reused `settings.api_key_missing`/`invalid_api_key`. Stateless (persistence = US-18); no frontend (US-15).

@@ -14,4 +14,10 @@ public sealed class AnthropicOptions
 
     /// <summary>Value for the required <c>anthropic-version</c> header.</summary>
     public string AnthropicVersion { get; set; } = "2023-06-01";
+
+    /// <summary>The Claude model used for answer generation (US-14). Config-driven — swapping it is a config edit.</summary>
+    public string GenerationModel { get; set; } = "claude-sonnet-5";
+
+    /// <summary>Maximum output tokens per generated answer (US-14).</summary>
+    public int MaxOutputTokens { get; set; } = 1024;
 }

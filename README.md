@@ -255,6 +255,34 @@ conversation persistence are **US-14**):
 - **Isolation & validation.** Only the session's ready chunks are ever eligible; a folder/document scope
   naming a target not visible to the session fails `chat.scope_not_found` (404), never a widened search.
 
+## Pipeline RAG — pytanie z odpowiedzią (US-14)
+
+`POST /api/chat/ask` (question + scope in the **body**, never the URL) turns a scoped question into a
+**grounded answer streamed** as Server-Sent Events. The chat UI is US-15; citations US-16; the "no basis"
+refusal UX US-17; conversation history US-18 — the ask here is **stateless**.
+
+```text
+POST /api/chat/ask {question, scope}
+  → validate (≤2000 → chat.invalid_question)
+  → key guard (US-02 → settings.api_key_missing, 401, before any provider call)
+  → retrieve (US-13 IScopedRetriever: session + Ready + scope, pgvector <=> top-K)
+  → threshold (keep similarity ≥ Rag:SimilarityThreshold; none → "insufficient grounding", NO model call)
+  → trim context to Rag:MaxContextChars (weakest passages first)
+  → grounding prompt ([1..K] with file+page; answer ONLY from passages; cite [n]; refuse-if-unsupported; question's language)
+  → stream Claude → SSE:  event: sources → event: token* → event: done{groundsFound}
+```
+
+- **Streamed, not buffered.** The answer flushes incrementally (`token` events) behind `IAnswerGenerator`
+  (thin resilient `HttpClient` to `/v1/messages` `stream:true`; **no** stream-truncating total timeout/retry).
+  Tests swap a deterministic streaming fake — **no test hits Anthropic**.
+- **Grounding contract.** `GroundingPrompt` is a single maintained artifact; the exact `RefusalPhrase` is the
+  sentinel US-17 detects. The `sources` event carries each `[n]`→document/page so US-16 can resolve citations.
+- **Distinct errors.** A missing key → `settings.api_key_missing` (401); a provider failure **before** the
+  first token is a ProblemDetails (`settings.invalid_api_key` 400 / `chat.provider_rate_limited` 429 /
+  `chat.provider_unavailable` 503); a failure **mid-stream** is an SSE `error` event with the same code.
+- **Config-driven** (`Rag:TopK`/`SimilarityThreshold`/`MaxContextChars`, `Anthropic:GenerationModel`/`MaxOutputTokens`).
+- **Deliberate MVP simplifications** (noted): no re-ranking (cross-encoder), no hybrid BM25+vector, no query rewriting.
+
 ### Known limitations
 
 - The BYOK key store is **process-local** (`IMemoryCache`). On a multi-instance deployment a request could

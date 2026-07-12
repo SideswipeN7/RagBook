@@ -1,5 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using RagBook.Modules.Chat.Domain;
+using RagBook.Modules.Chat.Features.AskQuestion;
 using RagBook.Modules.Documents.Domain;
 using RagBook.Modules.Documents.Processing;
 using RagBook.Modules.Documents.Quota;
@@ -20,6 +22,10 @@ public static class DependencyInjection
         // Documents module — background processing (US-06). The chunker is pure/core; the driver seams
         // (extractors, embedding provider, chunk store, status notifier) are bound in Infrastructure/host.
         services.AddScoped<IChunker, StructuralChunker>();
+
+        // Chat module — RAG ask pipeline (US-14). Retrieval (US-13) + generation seams are bound in Infrastructure.
+        services.AddScoped<IPromptBuilder, PromptBuilder>();
+        services.AddScoped<IAskQuestionPipeline, AskQuestionPipeline>();
 
         return services;
     }
