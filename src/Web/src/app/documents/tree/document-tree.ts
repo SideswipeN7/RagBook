@@ -1,6 +1,7 @@
 import { CdkTreeModule, NestedTreeControl } from '@angular/cdk/tree';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { DocumentActionsStore } from '../../core/document-actions.store';
 import { FolderTreeStore, MAX_FOLDER_DEPTH } from '../../core/folder-tree.store';
 import { FolderNode, TreeNode, TreeStore } from '../../core/tree.store';
 import { DocumentRow } from './document-row';
@@ -30,6 +31,7 @@ const FOLDER_ERROR_MESSAGES: Record<string, string> = {
 export class DocumentTree {
   private readonly store = inject(TreeStore);
   private readonly folders = inject(FolderTreeStore);
+  private readonly documents = inject(DocumentActionsStore);
 
   readonly roots = this.store.roots;
   readonly isEmpty = this.store.isEmpty;
@@ -40,6 +42,7 @@ export class DocumentTree {
   readonly creatingUnder = signal<string | null | undefined>(undefined);
   readonly renamingId = signal<string | null>(null);
   readonly confirmingDeleteId = signal<string | null>(null);
+  readonly confirmingDeleteDocumentId = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
 
   private restoring = false;
@@ -131,6 +134,17 @@ export class DocumentTree {
     });
   }
 
+  // Document-leaf delete (US-08) — a separate confirm so a folder and a document never cross wires.
+  askDeleteDocument(id: string): void {
+    this.resetInlineState();
+    this.confirmingDeleteDocumentId.set(id);
+  }
+
+  confirmDeleteDocument(id: string): void {
+    this.documents.delete(id); // the store issues DELETE /api/documents/{id} and refreshes tree + quota
+    this.confirmingDeleteDocumentId.set(null);
+  }
+
   cancelInline(): void {
     this.resetInlineState();
   }
@@ -139,6 +153,7 @@ export class DocumentTree {
     this.creatingUnder.set(undefined);
     this.renamingId.set(null);
     this.confirmingDeleteId.set(null);
+    this.confirmingDeleteDocumentId.set(null);
     this.errorMessage.set(null);
   }
 

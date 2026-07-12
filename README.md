@@ -218,6 +218,24 @@ handled deliberately:
   `IApiKeyValidator` / `IAnthropicClientFactory` seams (with resilience + in-memory test fakes) establish
   the pattern US-06/US-14 follow.
 
+## Usuwanie dokumentu (US-08)
+
+`DELETE /api/documents/{id}` hard-deletes a document and its whole index:
+
+- **Chunks cascade at the database** via the `documents → chunks` FK `ON DELETE CASCADE` — one source of
+  consistency, not application-level chunk deletion.
+- **Order: database first, then best-effort blob.** The row is deleted in a transaction (chunks cascade)
+  and committed; only then is the binary removed via `IFileStorage`. A **storage failure is logged and
+  swallowed** — the record and index are already gone, so an **orphaned blob is the accepted MVP
+  trade-off** (no cross-store transaction).
+- **Session-scoped → 404.** A document owned by another session is invisible, so its id deletes as
+  `document.not_found` (404), never 403; a repeat delete is likewise 404 (idempotent from the visitor).
+- **During processing**: deleting a still-processing document just succeeds — the US-06 worker aborts
+  quietly when it finds the record gone (no chunks written, no error).
+- **Frontend**: a **Delete** action + inline confirmation on document rows in the tree (no native dialog);
+  `DocumentActionsStore` refreshes the tree and the quota so the row disappears and the counter drops
+  without a reload.
+
 ### Known limitations
 
 - The BYOK key store is **process-local** (`IMemoryCache`). On a multi-instance deployment a request could

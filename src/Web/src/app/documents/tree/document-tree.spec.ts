@@ -86,4 +86,21 @@ describe('DocumentTree', () => {
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Pusty folder');
   });
+
+  it('deletes a document leaf via DELETE /api/documents after confirming (US-08)', () => {
+    loadTree();
+
+    // root.pdf (id d2) is a top-level document leaf.
+    fixture.componentInstance.askDeleteDocument('d2');
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Usunąć dokument');
+
+    fixture.componentInstance.confirmDeleteDocument('d2');
+
+    // DocumentActionsStore.delete → DELETE then refresh tree + quota.
+    controller.expectOne((r) => r.method === 'DELETE' && r.url === '/api/documents/d2').flush(null, { status: 204, statusText: 'No Content' });
+    controller.expectOne('/api/tree').flush({ folders, documents });
+    controller.expectOne('/api/quota').flush({});
+    expect(fixture.componentInstance.confirmingDeleteDocumentId()).toBeNull();
+  });
 });
