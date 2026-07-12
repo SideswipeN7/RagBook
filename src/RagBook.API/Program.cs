@@ -10,6 +10,7 @@ using RagBook.Infrastructure.SharedContext.Providers.Anthropic;
 using RagBook.Infrastructure.SharedContext.Processing;
 using RagBook.Infrastructure.SharedContext.Storage;
 using RagBook.Modules.Documents.Domain;
+using RagBook.Modules.Chat;
 using RagBook.Modules.Documents.Processing;
 using RagBook.Modules.Documents.Quota;
 using RagBook.Modules.Folders;
@@ -32,6 +33,7 @@ builder.Services.Configure<ApiKeyStoreOptions>(builder.Configuration.GetSection(
 builder.Services.Configure<AnthropicOptions>(builder.Configuration.GetSection(AnthropicOptions.SectionName));
 builder.Services.Configure<ChunkingOptions>(builder.Configuration.GetSection(ChunkingOptions.SectionName));
 builder.Services.Configure<EmbeddingOptions>(builder.Configuration.GetSection(EmbeddingOptions.SectionName));
+builder.Services.Configure<RagOptions>(builder.Configuration.GetSection(RagOptions.SectionName));
 
 builder.Services.AddApp();
 

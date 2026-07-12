@@ -167,6 +167,21 @@ by Aspire); running the API standalone requires that connection string in config
   (seed docs WITHOUT publishing `DocumentUploaded`, else the in-memory bus double-processes). Status pushed
   over **SSE** `GET /api/documents/status/stream` → Angular `DocumentStatusStore` refreshes the tree.
   PdfPig pinned to `1.7.0-custom-5` (other NuGet versions have broken transitive deps).
+- **Scoped retrieval (US-13, `Chat` module)**: `IScopedRetriever` (Chat/Domain) + `ScopedRetriever`
+  (Infrastructure `SharedContext/Retrieval`) is the **engine only** — no endpoint/UI/migration (that's
+  US-14). `ChatScope` = `All | Folder(id) | Document(id)` (factory-only, invalid combos unrepresentable).
+  Order: **resolve/validate scope** (folder path / document existence via raw SQL scoped to the session;
+  not visible → `chat.scope_not_found`) → **cheap `EXISTS`** (session + `status=1` + scope predicate); empty
+  → `ScopedRetrievalResult.Empty` with **no embedding, no search** (AC-5) → embed the question via the US-06
+  `IEmbeddingProvider` → raw-SQL cosine `<=>` search. **Gotchas:** `d.status = 1` (int `Ready`), NOT the
+  string `'Ready'`; the embedding column is EF-`Ignore`d so the read uses `dbContext.Database.GetDbConnection()`
+  + `DbCommand` (query vector as a **bound text param** `CAST(@queryVec AS vector)`, not interpolated); the
+  session filter is **explicit** in the WHERE (raw SQL bypasses the global query filter, as in US-06); folder
+  subtree = `f.path LIKE @scopePath || '%'` (US-09 materialized path). `Rag:TopK` (default 8) is the `LIMIT`
+  (config-driven). Tests seed via the real `IChunkRepository` + the deterministic `FakeEmbeddingProvider`
+  (same vectors → query/chunk comparable); the empty-scope test uses a `CountingEmbeddingProvider` to prove
+  the question was not embedded. **Testcontainer factory dispose:** dispose `base` (host/connections) BEFORE
+  the pgvector container, or teardown throws an AggregateException querying a gone DB.
 - **Delete document (US-08, `Documents/Features/DeleteDocument`)**: `DELETE /api/documents/{id}` →
   `IDocumentDeletionRepository.DeleteAsync(id)` (Infrastructure): session-scoped tracked load (null →
   `false` → `document.not_found`/404), **transactional row delete → chunks cascade at the DB** (US-06 FK) →

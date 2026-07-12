@@ -4,9 +4,11 @@ using RagBook.Infrastructure.SharedContext.Interceptors;
 using RagBook.Infrastructure.SharedContext.Persistence;
 using RagBook.Infrastructure.SharedContext.Processing;
 using RagBook.Infrastructure.SharedContext.Providers.Anthropic;
+using RagBook.Infrastructure.SharedContext.Retrieval;
 using RagBook.Infrastructure.SharedContext.Sessions;
 using RagBook.Infrastructure.SharedContext.Settings;
 using RagBook.Infrastructure.SharedContext.Storage;
+using RagBook.Modules.Chat.Domain;
 using RagBook.Modules.Documents.Domain;
 using RagBook.Modules.Folders.Domain;
 using RagBook.Modules.Session.Domain;
@@ -91,6 +93,9 @@ public static class DependencyInjection
         services.AddScoped<ITextExtractor, PlainTextExtractor>();
         services.AddScoped<ITextExtractor, PdfTextExtractor>();
         services.AddSingleton<IDocumentStatusNotifier, InMemoryDocumentStatusNotifier>();
+
+        // US-13 scoped retrieval — pre-filter (session + ready + scope) then pgvector cosine search.
+        services.AddScoped<IScopedRetriever, ScopedRetriever>();
 
         return services;
     }
