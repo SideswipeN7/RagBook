@@ -236,6 +236,25 @@ handled deliberately:
   `DocumentActionsStore` refreshes the tree and the quota so the row disappears and the counter drops
   without a reload.
 
+## Zakres pytania — hybrid filtering (US-13)
+
+A question is answered within a **scope** — all documents, a folder (with its whole subtree), or a single
+document. Retrieval is a **metadata pre-filter before the vector search** (one chunk table, one query — no
+per-folder indexes), behind the `IScopedRetriever` seam (the new **`Chat`** module; the selector UI and
+conversation persistence are **US-14**):
+
+- **Pre-filter, then rank.** One raw-SQL statement filters `d.user_session_id = @session` (explicit — the EF
+  global filter does not apply to raw SQL) **and** `d.status = Ready` **and** the scope predicate, then orders
+  by pgvector cosine distance (`embedding <=> @queryVec`, the US-06 HNSW `vector_cosine_ops` index) and caps
+  at **`Rag:TopK`** (config-driven, default 8). Every user value is a bound parameter.
+- **Folder = subtree.** A folder scope matches `f.path LIKE @scopePath || '%'` over the US-09 materialized
+  path (`text_pattern_ops` index), so "Umowy" also draws on "Umowy/2026". A document scope matches `d.id`.
+- **Retrieval owns the query embedding.** It embeds the question through the centralised US-06
+  `IEmbeddingProvider` (one model for the whole index) — but only **after** a cheap `EXISTS` confirms the
+  scope has ready-indexed content. An **empty scope short-circuits** with no embedding and no vector search.
+- **Isolation & validation.** Only the session's ready chunks are ever eligible; a folder/document scope
+  naming a target not visible to the session fails `chat.scope_not_found` (404), never a widened search.
+
 ### Known limitations
 
 - The BYOK key store is **process-local** (`IMemoryCache`). On a multi-instance deployment a request could
