@@ -69,14 +69,14 @@ internal sealed class FolderApiClient(RagBookApiFactory factory, Guid sessionId)
 
     private static async Task<string?> ReadCodeAsync(HttpResponseMessage response)
     {
-        // Success responses (e.g. 204 No Content on delete) have no body. Only failures are RFC 9457
-        // ProblemDetails carrying the stable code in the "code" extension.
+        // Success responses (e.g. 204 No Content on delete) have an empty body — no code to read.
         string body = await response.Content.ReadAsStringAsync();
         if (string.IsNullOrWhiteSpace(body))
         {
             return null;
         }
 
+        // Failures are RFC 9457 ProblemDetails carrying the stable code in the "code" extension.
         using var document = JsonDocument.Parse(body);
 
         return document.RootElement.TryGetProperty("code", out JsonElement code) ? code.GetString() : null;

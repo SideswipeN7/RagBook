@@ -11,6 +11,8 @@
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
+    <!-- The chunk embedding is a pgvector Vector value type (US-06); the Npgsql/EF plugin maps it. -->
+    <PackageReference Include="Pgvector" />
   </ItemGroup>
 
 </Project>

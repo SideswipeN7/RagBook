@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RagBook.Infrastructure.SharedContext.Interceptors;
 using RagBook.Infrastructure.SharedContext.Persistence;
+using RagBook.Infrastructure.SharedContext.Processing;
 using RagBook.Infrastructure.SharedContext.Providers.Anthropic;
 using RagBook.Infrastructure.SharedContext.Sessions;
 using RagBook.Infrastructure.SharedContext.Settings;
@@ -82,6 +83,13 @@ public static class DependencyInjection
                 client.BaseAddress = new Uri(anthropic.BaseUrl);
             })
             .AddStandardResilienceHandler();
+
+        // US-06 background processing — chunk store, session-agnostic reader, extractors, status notifier.
+        services.AddScoped<IChunkRepository, ChunkRepository>();
+        services.AddScoped<IDocumentProcessingReader, DocumentProcessingReader>();
+        services.AddScoped<ITextExtractor, PlainTextExtractor>();
+        services.AddScoped<ITextExtractor, PdfTextExtractor>();
+        services.AddSingleton<IDocumentStatusNotifier, InMemoryDocumentStatusNotifier>();
 
         return services;
     }
