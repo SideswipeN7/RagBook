@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using FluentAssertions;
+using RagBook.Modules.Chat.Domain;
 using RagBook.Modules.Folders.Domain;
 using Xunit;
 
@@ -36,6 +37,46 @@ public sealed class AskQuestionEndpointTests(ChatAskApiFactory factory) : IClass
         events.Count(e => e.Name == "token").Should().BeGreaterThanOrEqualTo(2); // incremental, not one block (A1/SC-004)
         events[^1].Name.Should().Be("done");
         events[^1].Data.Should().Contain("\"groundsFound\":true");
+        events[^1].Data.Should().Contain("\"state\":\"answered\""); // US-17 — a produced answer
+    }
+
+    [Fact]
+    public async Task Should_ReturnNoAnswerState_When_ModelReturnsRefusalSentinel()
+    {
+        // Arrange (US-17) — passages clear the threshold, but the model refuses with the exact sentinel.
+        factory.Generator.Reset();
+        factory.Generator.Deltas = [GroundingPrompt.RefusalPhrase];
+        var session = Guid.NewGuid();
+        factory.StoreKey(session);
+        await ChatRetrievalSeed.SeedReadyDocumentAsync(factory, session, "umowa.pdf", null, [("okres wypowiedzenia wynosi trzy miesiace", 2)]);
+        HttpClient client = SseEvents.CreateClient(factory, session);
+
+        // Act
+        IReadOnlyList<SseEvents.Event> events = await SseEvents.ReadAsync(await SseEvents.AskAsync(client, "okres wypowiedzenia wynosi trzy miesiace", "all"));
+
+        // Assert — prompt-refusal path: grounds existed (a sources event) but the state is no_answer.
+        events.Should().Contain(e => e.Name == "sources");
+        events[^1].Name.Should().Be("done");
+        events[^1].Data.Should().Contain("\"state\":\"no_answer\"");
+    }
+
+    [Fact]
+    public async Task Should_ReturnAnsweredState_When_SentinelAppearsMidText()
+    {
+        // Arrange (US-17) — the sentinel is embedded in a longer answer ⇒ a normal answer, not a refusal.
+        factory.Generator.Reset();
+        factory.Generator.Deltas = ["Umowa nie zawiera tej kary [1]. ", GroundingPrompt.RefusalPhrase];
+        var session = Guid.NewGuid();
+        factory.StoreKey(session);
+        await ChatRetrievalSeed.SeedReadyDocumentAsync(factory, session, "umowa.pdf", null, [("okres wypowiedzenia wynosi trzy miesiace", 2)]);
+        HttpClient client = SseEvents.CreateClient(factory, session);
+
+        // Act
+        IReadOnlyList<SseEvents.Event> events = await SseEvents.ReadAsync(await SseEvents.AskAsync(client, "okres wypowiedzenia wynosi trzy miesiace", "all"));
+
+        // Assert
+        events[^1].Name.Should().Be("done");
+        events[^1].Data.Should().Contain("\"state\":\"answered\"");
     }
 
     [Fact]
@@ -77,9 +118,11 @@ public sealed class AskQuestionEndpointTests(ChatAskApiFactory factory) : IClass
         HttpResponseMessage response = await SseEvents.AskAsync(client, "przepisy o wynagrodzeniu i premiach kwartalnych", "all");
         IReadOnlyList<SseEvents.Event> events = await SseEvents.ReadAsync(response);
 
-        // Assert
+        // Assert — deterministic no-grounds: no model call, no sources, a no_answer state (US-17).
         events.Should().ContainSingle(e => e.Name == "done").Which.Data.Should().Contain("\"groundsFound\":false");
+        events[^1].Data.Should().Contain("\"state\":\"no_answer\"");
         events.Should().NotContain(e => e.Name == "token");
+        events.Should().NotContain(e => e.Name == "sources");
         factory.Generator.Invoked.Should().BeFalse();
     }
 

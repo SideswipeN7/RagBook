@@ -26,6 +26,16 @@ export class ChatAnswer {
   /** The source currently shown in the preview panel, or null when closed. */
   readonly preview = signal<Source | null>(null);
 
+  /** US-17: a grounded refusal (deterministic cut-off or prompt sentinel) — rendered neutrally, not as an answer. */
+  readonly isNoAnswer = computed(() => this.exchange().status === 'no_answer');
+
+  /** Next-step hints shown with a NoAnswerFound message (US-17 FR-006). */
+  readonly hints: readonly string[] = [
+    'Rozszerz zakres wyszukiwania na szerszy.',
+    'Sprawdź, czy dokument zakończył przetwarzanie (status Gotowy).',
+    'Spróbuj przeformułować pytanie.',
+  ];
+
   private readonly validNumbers = computed(() => new Set(this.exchange().sources.map((source) => source.number)));
 
   /** The answer split into plain-text and clickable-citation runs. */

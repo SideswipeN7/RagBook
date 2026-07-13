@@ -76,11 +76,11 @@ describe('Chat', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('textarea')).toBeNull();
   });
 
-  it('shows a neutral no-basis note when grounds not found', () => {
-    store.thread.set([exchange({ status: 'complete', groundsFound: false, answer: '' })]);
+  it('shows the neutral no-answer view when the state is no_answer (US-17)', () => {
+    store.thread.set([exchange({ status: 'no_answer', groundsFound: false, answer: '' })]);
     fixture.detectChanges();
 
-    expect(text()).toContain('Brak podstaw w wybranym zakresie');
+    expect(text()).toContain('Nie znalazłem tego w dokumentach');
   });
 
   it('shows an error message with a Try again action', () => {

@@ -322,6 +322,35 @@ grounded them, deterministically.
 - **Out of scope (deliberate):** original-PDF navigation/highlighting and answer export with a bibliography —
   we show the chunk text, not its position in the PDF.
 
+## Grounding i odmowa odpowiedzi (US-17)
+
+The trust guarantee: when your documents don't contain the answer, RagBook says so plainly instead of inventing
+one. **Two lines of defence**, and a distinct message state so a refusal never looks like a produced answer:
+
+- **1 — Deterministic, before the model.** If no retrieved passage clears the similarity threshold
+  (`Rag:SimilarityThreshold`, default **0.75** — a chunk is kept only when cosine similarity ≥ 0.75, i.e. cosine
+  distance ≤ 0.25), the ask pipeline returns "no grounds" and the endpoint streams a terminal state **without
+  calling the model** (no wasted tokens/latency) and with **no** source list.
+- **2 — Prompt sentinel, in the model.** When passages clear the threshold but don't answer, the grounding prompt
+  (US-14) obliges the model to reply with the exact refusal phrase `GroundingPrompt.RefusalPhrase`. The backend
+  detects it via the domain rule `GroundingPrompt.IsRefusal` (trimmed **equality** — a longer answer that merely
+  contains the phrase stays a normal answer) and maps it to the same no-answer state.
+- **One `NoAnswerFound` state, conveyed additively.** The terminal `done` SSE event gains a `state:
+  "answered" | "no_answer"` field (alongside the retained `groundsFound`); event names/order are unchanged. Both
+  no-grounds paths emit `state: "no_answer"`.
+- **Rendered as calm information, not an error.** The frontend shows a neutral *"Nie znalazłem tego w
+  dokumentach"* with next-step hints (broaden the scope · check the document is Ready · rephrase) — informational
+  design tokens, never the error treatment, never a Try-again. When passages were in context (prompt-refusal), a
+  collapsible *"przeszukane fragmenty"* stays available for transparency; the deterministic cut-off shows just the
+  message + hints.
+- **Partial answers stay normal.** The model may answer the covered part (with `[n]` citations) and name what's
+  missing — that is a trustworthy answer, not a refusal.
+- **Pinned by an evaluation set.** `NoBasisEvalTests` drives ≥10 (question → expected state) pairs through the real
+  pipeline (fake generator, no real provider): off-topic → deterministic no-call, refusal → `no_answer`, answered →
+  `answered`. The dev/test stand-in embedding is non-semantic (every unrelated text clusters near cosine 0.75), so
+  the eval raises its own threshold to 0.9 to reliably exercise the below-threshold path; **production stays 0.75**,
+  where a real embedding separates off-topic far below the bar.
+
 ### Known limitations
 
 - The BYOK key store is **process-local** (`IMemoryCache`). On a multi-instance deployment a request could

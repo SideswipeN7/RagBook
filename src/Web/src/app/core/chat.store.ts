@@ -25,7 +25,7 @@ export interface ChatExchange {
   readonly id: string;
   readonly question: string;
   readonly scope: ChatScopeSelection;
-  readonly status: 'streaming' | 'complete' | 'interrupted' | 'error';
+  readonly status: 'streaming' | 'complete' | 'no_answer' | 'interrupted' | 'error';
   readonly answer: string;
   readonly sources: readonly Source[];
   readonly groundsFound: boolean;
@@ -126,8 +126,9 @@ export class ChatStore {
           this.appendToken(id, text);
         } else if (event.event === 'done') {
           completed = true;
-          const { groundsFound } = JSON.parse(event.data) as { groundsFound: boolean };
-          this.patch(id, { status: 'complete', groundsFound });
+          const { groundsFound, state } = JSON.parse(event.data) as { groundsFound: boolean; state?: 'answered' | 'no_answer' };
+          // US-17: `no_answer` (deterministic cut-off OR prompt refusal) is a distinct, neutral message state.
+          this.patch(id, { status: state === 'no_answer' ? 'no_answer' : 'complete', groundsFound });
         } else if (event.event === 'error') {
           const { code } = JSON.parse(event.data) as { code: string };
           this.patch(id, { status: 'error', errorMessage: this.message(code) });

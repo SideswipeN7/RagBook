@@ -19,7 +19,7 @@ namespace RagBook.Api.IntegrationTests.Chat;
 /// for the scriptable <see cref="FakeStreamingAnswerGenerator"/> (no real Anthropic). Exposes a helper to
 /// store a session key so the pre-generation guard passes. The swap is applied on this factory's own host.
 /// </summary>
-public sealed class ChatAskApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public class ChatAskApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("pgvector/pgvector:pg17")
         .WithDatabase("ragbookdb")
@@ -30,6 +30,13 @@ public sealed class ChatAskApiFactory : WebApplicationFactory<Program>, IAsyncLi
     /// <summary>The scriptable generator the endpoint streams from.</summary>
     public FakeStreamingAnswerGenerator Generator { get; } = new();
 
+    /// <summary>
+    /// Optional retrieval similarity-threshold override. The deterministic stand-in embedding cannot separate
+    /// topics (every unrelated text sits at cosine ≈0.75), so a subclass raises this to reliably drive the
+    /// "matches below threshold" path (US-17 eval); the production default (0.75) is unchanged for other tests.
+    /// </summary>
+    protected virtual double? SimilarityThresholdOverride => null;
+
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -38,6 +45,11 @@ public sealed class ChatAskApiFactory : WebApplicationFactory<Program>, IAsyncLi
         // A short heartbeat so the US-15 keep-alive test can observe a comment on a delaying stream; fast
         // tests complete well under a second, so no heartbeat fires for them.
         builder.UseSetting("Rag:StreamHeartbeatSeconds", "1");
+
+        if (SimilarityThresholdOverride is double threshold)
+        {
+            builder.UseSetting("Rag:SimilarityThreshold", threshold.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
 
         builder.ConfigureTestServices(services =>
         {
