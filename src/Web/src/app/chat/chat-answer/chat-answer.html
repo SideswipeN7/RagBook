@@ -1,40 +1,62 @@
-@if (exchange().answer) {
-  <p
-    class="turn__answer"
-    [class.turn__answer--partial]="exchange().status === 'interrupted'"
-  >@for (segment of segments(); track $index) {@if (segment.type === 'text') {<span>{{ segment.value }}</span>}@else {<button type="button" class="cite" [attr.aria-label]="'Pokaż źródło ' + segment.number" (click)="openByNumber(segment.number)">[{{ segment.number }}]</button>}}</p>
-}
+@if (isNoAnswer()) {
+  <div class="no-answer" role="status">
+    <p class="no-answer__title">Nie znalazłem tego w dokumentach</p>
+    <ul class="no-answer__hints">
+      @for (hint of hints; track hint) {
+        <li>{{ hint }}</li>
+      }
+    </ul>
+  </div>
 
-@if (exchange().sources.length) {
-  <div class="sources">
-    @if (usedSources().length) {
-      <ul class="sources__list" aria-label="Użyte źródła">
-        @for (source of usedSources(); track source.chunkId) {
+  @if (exchange().sources.length) {
+    <details class="sources__more">
+      <summary>Przeszukane fragmenty ({{ exchange().sources.length }})</summary>
+      <ul class="sources__list">
+        @for (source of exchange().sources; track source.chunkId) {
           <ng-container *ngTemplateOutlet="item; context: { $implicit: source }" />
         }
       </ul>
-    }
+    </details>
+  }
+} @else {
+  @if (exchange().answer) {
+    <p
+      class="turn__answer"
+      [class.turn__answer--partial]="exchange().status === 'interrupted'"
+    >@for (segment of segments(); track $index) {@if (segment.type === 'text') {<span>{{ segment.value }}</span>}@else {<button type="button" class="cite" [attr.aria-label]="'Pokaż źródło ' + segment.number" (click)="openByNumber(segment.number)">[{{ segment.number }}]</button>}}</p>
+  }
 
-    @if (otherSources().length) {
+  @if (exchange().sources.length) {
+    <div class="sources">
       @if (usedSources().length) {
-        <details class="sources__more">
-          <summary>Pozostałe przeszukane fragmenty ({{ otherSources().length }})</summary>
-          <ul class="sources__list">
-            @for (source of otherSources(); track source.chunkId) {
-              <ng-container *ngTemplateOutlet="item; context: { $implicit: source }" />
-            }
-          </ul>
-        </details>
-      } @else {
-        <p class="sources__note" role="status">Model nie wskazał źródeł — poniżej wszystkie przeszukane fragmenty.</p>
-        <ul class="sources__list" aria-label="Przeszukane fragmenty">
-          @for (source of otherSources(); track source.chunkId) {
+        <ul class="sources__list" aria-label="Użyte źródła">
+          @for (source of usedSources(); track source.chunkId) {
             <ng-container *ngTemplateOutlet="item; context: { $implicit: source }" />
           }
         </ul>
       }
-    }
-  </div>
+
+      @if (otherSources().length) {
+        @if (usedSources().length) {
+          <details class="sources__more">
+            <summary>Pozostałe przeszukane fragmenty ({{ otherSources().length }})</summary>
+            <ul class="sources__list">
+              @for (source of otherSources(); track source.chunkId) {
+                <ng-container *ngTemplateOutlet="item; context: { $implicit: source }" />
+              }
+            </ul>
+          </details>
+        } @else {
+          <p class="sources__note" role="status">Model nie wskazał źródeł — poniżej wszystkie przeszukane fragmenty.</p>
+          <ul class="sources__list" aria-label="Przeszukane fragmenty">
+            @for (source of otherSources(); track source.chunkId) {
+              <ng-container *ngTemplateOutlet="item; context: { $implicit: source }" />
+            }
+          </ul>
+        }
+      }
+    </div>
+  }
 }
 
 @if (preview(); as source) {

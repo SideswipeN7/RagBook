@@ -68,7 +68,7 @@ describe('ChatStore', () => {
       SOURCES,
       'event: token\ndata: {"text":"Ok"}\n\n',
       'event: token\ndata: {"text":"res [1]."}\n\n',
-      'event: done\ndata: {"groundsFound":true}\n\n',
+      'event: done\ndata: {"groundsFound":true,"state":"answered"}\n\n',
     ]);
 
     await store.ask('okres?', ALL);
@@ -81,15 +81,29 @@ describe('ChatStore', () => {
     expect((spy.calls.mostRecent().args[1] as RequestInit).credentials).toBe('same-origin'); // C1
   });
 
-  it('shows the no-basis outcome (groundsFound:false) with no answer text', async () => {
-    stubStream(['event: done\ndata: {"groundsFound":false}\n\n']);
+  it('maps a no_answer done (deterministic cut-off) to the no_answer status', async () => {
+    stubStream(['event: done\ndata: {"groundsFound":false,"state":"no_answer"}\n\n']);
 
     await store.ask('nieznane', ALL);
 
     const exchange = store.thread()[0];
-    expect(exchange.status).toBe('complete');
+    expect(exchange.status).toBe('no_answer'); // US-17 — a distinct, neutral state, not 'complete'
     expect(exchange.groundsFound).toBeFalse();
     expect(exchange.answer).toBe('');
+  });
+
+  it('maps a no_answer done after streamed tokens (prompt refusal) to the no_answer status', async () => {
+    stubStream([
+      SOURCES,
+      'event: token\ndata: {"text":"Nie znalazlem..."}\n\n',
+      'event: done\ndata: {"groundsFound":true,"state":"no_answer"}\n\n',
+    ]);
+
+    await store.ask('pytanie bez pokrycia', ALL);
+
+    const exchange = store.thread()[0];
+    expect(exchange.status).toBe('no_answer');
+    expect(exchange.sources.length).toBe(1); // grounds existed → searched fragments available
   });
 
   it('maps a mid-stream error event to a message, keeping the partial answer', async () => {

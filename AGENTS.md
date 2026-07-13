@@ -230,4 +230,20 @@ by Aspire); running the API standalone requires that connection string in config
   answer render + **used** sources (client-derived ~200-char snippet) + a collapsed *"pozostałe przeszukane
   fragmenty"* + an **in-app preview panel** (no native dialog). The preview reads the **captured** `text`, so a
   citation survives its document's deletion (AC-4; full persistence is US-18). `chat.html` keeps the question /
-  status / no-basis note; `chat-answer` owns answer+sources+preview. Event names/order are unchanged.
+  status / interrupted / error; `chat-answer` owns answer + sources + preview + the no-answer view. Event
+  names/order are unchanged.
+- **No-basis / refusal (US-17)**: two lines of defence. (1) **Deterministic** pre-LLM cut-off already exists
+  (US-14): nothing clears `Rag:SimilarityThreshold` (default 0.75; keep if cosine sim ≥ 0.75 ⇔ distance ≤ 0.25) →
+  `StreamInsufficientAsync` emits the terminal state with **no** model call, **no** `sources`. (2) **Prompt
+  sentinel**: `GroundingPrompt.RefusalPhrase` (defined US-14) is detected by the domain rule
+  `GroundingPrompt.IsRefusal(answer)` = **trimmed ordinal equality** (a longer answer that merely contains it is a
+  normal answer — no over-refusal). `ChatEndpoints.StreamAnswerAsync` **accumulates** the streamed deltas and, on
+  completion, sets the terminal `done` payload — now **additively** `{ groundsFound, state: "answered"|"no_answer" }`
+  (`AnswerState` consts; no event rename/reorder). Both no-grounds paths emit `state:"no_answer"`. Frontend:
+  `ChatStore` maps `state` → `ChatExchange.status` (added `'no_answer'`); `chat-answer` renders a **neutral**
+  NoAnswerFound view (informational tokens, never `--color-error`, no Try-again) — "Nie znalazłem tego w
+  dokumentach" + hints — with the collapsed *"przeszukane fragmenty"* only when `sources.length > 0`
+  (prompt-refusal); the answer paragraph is gated off for `no_answer` (its accumulated text is the sentinel). Eval:
+  `NoBasisEvalTests` (≥10 pairs) subclasses `ChatAskApiFactory` with `SimilarityThresholdOverride => 0.9` because
+  the **stand-in embedding is non-semantic** (every unrelated text ≈ cosine 0.75) — production threshold stays 0.75.
+  No message persistence (US-18); no real provider in tests.

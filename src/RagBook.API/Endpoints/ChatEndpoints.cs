@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using RagBook.API.ProblemDetails;
@@ -70,10 +71,18 @@ public static class ChatEndpoints
         return endpoints;
     }
 
+    /// <summary>The terminal <c>done</c> state (US-17). Additive to <c>groundsFound</c>; the frontend keys off this.</summary>
+    private static class AnswerState
+    {
+        public const string Answered = "answered";
+        public const string NoAnswer = "no_answer";
+    }
+
     private static async Task StreamInsufficientAsync(HttpContext httpContext, CancellationToken cancellationToken)
     {
         StartEventStream(httpContext);
-        await WriteEventAsync(httpContext, "done", new { groundsFound = false }, cancellationToken);
+        // Deterministic no-grounds (US-14): no model call, no sources — a NoAnswerFound state (US-17).
+        await WriteEventAsync(httpContext, "done", new { groundsFound = false, state = AnswerState.NoAnswer }, cancellationToken);
     }
 
     private static async Task StreamAnswerAsync(
@@ -112,8 +121,13 @@ public static class ChatEndpoints
                 .Select(passage => new SourceDto(passage.Number, passage.DocumentId, passage.FileName, passage.PageNumber, passage.Text, passage.ChunkId));
             await WriteEventGuardedAsync(httpContext, writeLock, "sources", sources, cancellationToken);
 
+            // Accumulate the streamed answer so a completed refusal sentinel maps to NoAnswerFound (US-17). Tokens
+            // are still streamed as they arrive — a brief flash of the sentinel before the state switch is accepted.
+            var answer = new StringBuilder();
+
             if (firstDelta is not null)
             {
+                answer.Append(firstDelta);
                 await WriteEventGuardedAsync(httpContext, writeLock, "token", new { text = firstDelta }, cancellationToken);
             }
 
@@ -136,10 +150,12 @@ public static class ChatEndpoints
                     return;
                 }
 
+                answer.Append(next);
                 await WriteEventGuardedAsync(httpContext, writeLock, "token", new { text = next }, cancellationToken);
             }
 
-            await WriteEventGuardedAsync(httpContext, writeLock, "done", new { groundsFound = true }, cancellationToken);
+            string state = GroundingPrompt.IsRefusal(answer.ToString()) ? AnswerState.NoAnswer : AnswerState.Answered;
+            await WriteEventGuardedAsync(httpContext, writeLock, "done", new { groundsFound = true, state }, cancellationToken);
         }
         finally
         {

@@ -11,10 +11,6 @@
 
         <app-chat-answer [exchange]="exchange" />
 
-        @if (exchange.status === 'complete' && !exchange.groundsFound) {
-          <p class="turn__note" role="status">Brak podstaw w wybranym zakresie.</p>
-        }
-
         @if (exchange.status === 'interrupted') {
           <p class="turn__meta">Przerwano.</p>
         }

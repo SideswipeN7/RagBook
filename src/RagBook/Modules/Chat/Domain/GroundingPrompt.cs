@@ -12,6 +12,16 @@ public static class GroundingPrompt
     /// <summary>The exact refusal sentence the model must emit when the passages do not answer the question (US-17 matches it verbatim).</summary>
     public const string RefusalPhrase = "Nie znalazłem odpowiedzi w wybranych dokumentach.";
 
+    /// <summary>
+    /// True when a completed answer <b>is</b> the refusal sentinel (US-17): trimmed ordinal equality to
+    /// <see cref="RefusalPhrase"/>. The prompt requires "exactly this sentence and nothing else", so a longer
+    /// answer that merely contains — or opens with — the phrase is a normal answer, not a refusal.
+    /// </summary>
+    public static bool IsRefusal(string answer)
+    {
+        return answer.Trim().Equals(RefusalPhrase, StringComparison.Ordinal);
+    }
+
     /// <summary>The system instructions prepended to every grounded answer.</summary>
     public static readonly string SystemInstructions =
         $"""

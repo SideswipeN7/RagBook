@@ -90,6 +90,31 @@ describe('ChatAnswer', () => {
     expect(text(el)).toContain('[9]');
   });
 
+  it('renders the neutral no-answer view with hints and no answer paragraph (US-17 AC-2/AC-3)', () => {
+    // A prompt refusal: the accumulated answer is the sentinel text; it must NOT be shown as an answer.
+    const el = render(exchange({ status: 'no_answer', answer: 'Nie znalazłem odpowiedzi w wybranych dokumentach.', sources: [] }));
+
+    const neutral = el.querySelector('.no-answer') as HTMLElement;
+    expect(neutral).toBeTruthy();
+    expect(text(neutral)).toContain('Nie znalazłem tego w dokumentach');
+    expect(el.querySelector('.no-answer__hints li')).toBeTruthy(); // next-step hints present
+    expect(el.querySelector('.turn__answer')).toBeNull(); // the sentinel text is not rendered as an answer
+    expect(el.querySelector('.turn__error')).toBeNull(); // not an error rendering
+  });
+
+  it('shows przeszukane fragmenty for a no_answer only when passages were in context (US-17 FR-007)', () => {
+    // Deterministic cut-off — no sources → no fragments section.
+    const deterministic = render(exchange({ status: 'no_answer', answer: '', sources: [] }));
+    expect(deterministic.querySelector('details')).toBeNull();
+
+    // Prompt refusal — sources present → collapsible searched fragments.
+    const refusal = render(exchange({ status: 'no_answer', answer: 'Nie znalazłem odpowiedzi w wybranych dokumentach.', sources: [source(1), source(2)] }));
+    const details = refusal.querySelector('details') as HTMLElement;
+    expect(details).toBeTruthy();
+    expect(text(details)).toContain('Przeszukane fragmenty (2)');
+    expect(text(details)).toContain('plik-1.pdf');
+  });
+
   it('renders no source list for a no-basis answer (AC-5)', () => {
     const el = render(exchange({ status: 'complete', groundsFound: false, answer: '', sources: [] }));
 
