@@ -302,6 +302,26 @@ The Angular chat consumes US-14's stream **live** and hardens it:
 - **Keep-alive.** During a long stream the backend emits an SSE comment every `Rag:StreamHeartbeatSeconds`
   (writes serialized with a semaphore) so an intermediary idle-timeout does not cut the answer.
 
+## Cytaty źródeł — klikalne, weryfikowalne (US-16)
+
+Every grounded answer is **auditable**: the `[n]` markers Claude writes resolve to the exact passage that
+grounded them, deterministically.
+
+- **Deterministic `[n]`→chunk mapping, from the prompt — not guessed.** The backend numbered the passages when
+  it built the prompt (US-14), so the `sources` SSE event carries each passage's full `text` and `chunkId`
+  alongside `number`/`documentId`/`fileName`/`pageNumber`. The client never parses the model's "intent" — `[2]`
+  always means the passage the backend labelled `2`.
+- **Clickable citations + in-app preview.** A pure `citation-parser` splits the answer into text and `[n]`
+  runs; `chat-answer` renders each in-range `[n]` as a button that opens a **preview panel** with the full
+  chunk text + file + page — a design-system panel, never `window.alert`/`confirm`.
+- **Used vs searched.** Passages whose `[n]` appears in the answer are listed as **used** (with a
+  client-derived ~200-char snippet); the rest sit under a collapsed *"pozostałe przeszukane fragmenty"*.
+- **Survives deletion.** The preview reads the `text` captured on the exchange, so a historical citation stays
+  verifiable even after its document is deleted (full persistence + "Dokument został usunięty" re-resolution is
+  US-18). Out-of-range or marker-less answers degrade gracefully (plain text + a logged warning).
+- **Out of scope (deliberate):** original-PDF navigation/highlighting and answer export with a bibliography —
+  we show the chunk text, not its position in the PDF.
+
 ### Known limitations
 
 - The BYOK key store is **process-local** (`IMemoryCache`). On a multi-instance deployment a request could

@@ -9,20 +9,10 @@
       <article class="turn">
         <p class="turn__question">{{ exchange.question }}</p>
 
-        @if (exchange.answer) {
-          <p class="turn__answer" [class.turn__answer--partial]="exchange.status === 'interrupted'">{{ exchange.answer }}</p>
-        }
+        <app-chat-answer [exchange]="exchange" />
 
         @if (exchange.status === 'complete' && !exchange.groundsFound) {
           <p class="turn__note" role="status">Brak podstaw w wybranym zakresie.</p>
-        }
-
-        @if (exchange.sources.length) {
-          <ul class="turn__sources" aria-label="Źródła">
-            @for (source of exchange.sources; track source.number) {
-              <li>[{{ source.number }}] {{ source.fileName }}@if (source.pageNumber !== null) {, s. {{ source.pageNumber }}}</li>
-            }
-          </ul>
         }
 
         @if (exchange.status === 'interrupted') {
