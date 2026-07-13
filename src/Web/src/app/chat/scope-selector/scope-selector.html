@@ -1,0 +1,20 @@
+<label class="scope">
+  <span class="scope__label">Zakres:</span>
+  <select class="scope__select" aria-label="Zakres pytania" (change)="select($any($event.target).value)">
+    <option value="all">Wszystkie dokumenty</option>
+    @if (folders().length) {
+      <optgroup label="Foldery">
+        @for (folder of folders(); track folder.id) {
+          <option [value]="'folder:' + folder.id">{{ folder.name }}</option>
+        }
+      </optgroup>
+    }
+    @if (readyDocuments().length) {
+      <optgroup label="Dokumenty">
+        @for (document of readyDocuments(); track document.id) {
+          <option [value]="'document:' + document.id">{{ document.fileName }}</option>
+        }
+      </optgroup>
+    }
+  </select>
+</label>

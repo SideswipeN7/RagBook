@@ -209,3 +209,15 @@ by Aspire); running the API standalone requires that connection string in config
   (answerable); a different question ⇒ ~orthogonal ⇒ below threshold (insufficient). `GroundingPrompt.RefusalPhrase`
   is the exact sentinel US-17 will detect. Codes: `chat.invalid_question`/`provider_rate_limited`/`provider_unavailable`
   + reused `settings.api_key_missing`/`invalid_api_key`. Stateless (persistence = US-18); no frontend (US-15).
+- **Streaming chat UI (US-15, `src/Web/src/app/chat` + `core/chat.store.ts`)**: consumes US-14's SSE via a
+  streaming **`fetch`** (NOT Angular `HttpClient`, NOT `EventSource` — the endpoint is a POST token stream) +
+  a pure `sse-parser.ts` (unit-tested; ignores `:` heartbeat comments). `ChatStore` holds a **multi-turn
+  in-memory thread** (signals); `token`→append, `sources`→list, `done`/`error`/abort→status. **The fetch MUST
+  send `credentials: 'same-origin'`** (session cookie) else the ask hits a fresh session → 401. `stop()` =
+  `AbortController.abort()`; a new ask aborts the previous (one active). Stream-without-`done` → error. Codes→PL
+  `Record`. Tests **stub the global `fetch`** (`spyOn(window,'fetch')`) returning a scripted `ReadableStream`
+  (HttpTestingController does NOT intercept fetch); a pending stream that `controller.error`s on the abort
+  signal drives the stop test. Backend hardening in `ChatEndpoints`: a keep-alive comment every
+  `Rag:StreamHeartbeatSeconds` (all writes serialized by a `SemaphoreSlim`) + client-disconnect cancellation.
+  **TestServer gotcha:** cancelling the send token alone does NOT trigger `RequestAborted` — **dispose** the
+  response/stream to simulate a client disconnect (`FakeStreamingAnswerGenerator.CancellationObserved`).

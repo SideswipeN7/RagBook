@@ -20,16 +20,24 @@ public sealed class FakeStreamingAnswerGenerator : IAnswerGenerator
     /// <summary>When set, throw this failure after the first delta (mid-stream).</summary>
     public AnswerGenerationFailure? FailAfterFirstDelta { get; set; }
 
+    /// <summary>Optional delay between deltas — lets a test provoke a heartbeat (US-15 FR-010) or abort mid-stream.</summary>
+    public TimeSpan DelayPerDelta { get; set; } = TimeSpan.Zero;
+
     /// <summary>True once <see cref="GenerateAsync"/> has been invoked.</summary>
     public bool Invoked { get; private set; }
+
+    /// <summary>True once the generator observed cancellation (client disconnect / abort — US-15 AC-5).</summary>
+    public bool CancellationObserved { get; private set; }
 
     /// <summary>Resets the recorded invocation and the script to defaults (call at the start of a test).</summary>
     public void Reset()
     {
         Invoked = false;
+        CancellationObserved = false;
         Deltas = ["Odpowiedź", " brzmi [1]."];
         FailBeforeFirstDelta = null;
         FailAfterFirstDelta = null;
+        DelayPerDelta = TimeSpan.Zero;
     }
 
     /// <inheritdoc />
@@ -49,6 +57,20 @@ public sealed class FakeStreamingAnswerGenerator : IAnswerGenerator
         for (int index = 0; index < Deltas.Count; index++)
         {
             yield return Deltas[index];
+
+            if (DelayPerDelta > TimeSpan.Zero)
+            {
+                try
+                {
+                    await Task.Delay(DelayPerDelta, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    CancellationObserved = true;
+
+                    throw;
+                }
+            }
 
             if (index == 0 && FailAfterFirstDelta is AnswerGenerationFailure after)
             {

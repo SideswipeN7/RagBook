@@ -35,6 +35,9 @@ public sealed class ChatAskApiFactory : WebApplicationFactory<Program>, IAsyncLi
     {
         builder.UseEnvironment("Development");
         builder.UseSetting("ConnectionStrings:ragbookdb", _container.GetConnectionString());
+        // A short heartbeat so the US-15 keep-alive test can observe a comment on a delaying stream; fast
+        // tests complete well under a second, so no heartbeat fires for them.
+        builder.UseSetting("Rag:StreamHeartbeatSeconds", "1");
 
         builder.ConfigureTestServices(services =>
         {
