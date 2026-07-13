@@ -24,7 +24,7 @@ public sealed class PromptBuilder(IOptions<RagOptions> options) : IPromptBuilder
         }
 
         var sources = kept
-            .Select((chunk, index) => new GroundingPassage(index + 1, chunk.DocumentId, chunk.FileName, chunk.PageNumber, chunk.Text))
+            .Select((chunk, index) => new GroundingPassage(index + 1, chunk.DocumentId, chunk.FileName, chunk.PageNumber, chunk.Text, chunk.ChunkId))
             .ToList();
 
         return new GroundedContext(sources, GroundingPrompt.SystemInstructions, ComposeUserPrompt(kept, question));

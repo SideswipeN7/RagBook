@@ -15,4 +15,6 @@ public sealed record ScopeDto(string Type, Guid? TargetId);
 /// <param name="DocumentId">The source document.</param>
 /// <param name="FileName">The source document's file name.</param>
 /// <param name="PageNumber">Source page (null for TXT/MD).</param>
-public sealed record SourceDto(int Number, Guid DocumentId, string FileName, int? PageNumber);
+/// <param name="Text">Full chunk text — for the citation preview (US-16). The list snippet is derived client-side.</param>
+/// <param name="ChunkId">The chunk id — the deterministic <c>[n]</c>→chunk mapping key (US-16).</param>
+public sealed record SourceDto(int Number, Guid DocumentId, string FileName, int? PageNumber, string Text, Guid ChunkId);

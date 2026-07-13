@@ -101,5 +101,25 @@ public sealed class AskQuestionEndpointTests(ChatAskApiFactory factory) : IClass
         factory.Generator.Invoked.Should().BeFalse();
     }
 
-    private sealed record SourceRow(int Number, Guid DocumentId, string FileName, int? PageNumber);
+    [Fact]
+    public async Task Should_IncludeTextAndChunkId_InSources()
+    {
+        // Arrange (US-16) — the sources event must carry the full chunk text + chunk id for citations.
+        factory.Generator.Reset();
+        var session = Guid.NewGuid();
+        factory.StoreKey(session);
+        await ChatRetrievalSeed.SeedReadyDocumentAsync(factory, session, "umowa.pdf", null, [("okres wypowiedzenia wynosi trzy miesiace", 2)]);
+        HttpClient client = SseEvents.CreateClient(factory, session);
+
+        // Act
+        HttpResponseMessage response = await SseEvents.AskAsync(client, "okres wypowiedzenia wynosi trzy miesiace", "all");
+        SseEvents.Event sources = (await SseEvents.ReadAsync(response)).First(e => e.Name == "sources");
+        SourceRow row = JsonSerializer.Deserialize<SourceRow[]>(sources.Data, JsonOptions)![0];
+
+        // Assert
+        row.Text.Should().Be("okres wypowiedzenia wynosi trzy miesiace");
+        row.ChunkId.Should().NotBeEmpty();
+    }
+
+    private sealed record SourceRow(int Number, Guid DocumentId, string FileName, int? PageNumber, string Text, Guid ChunkId);
 }

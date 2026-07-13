@@ -109,7 +109,7 @@ public static class ChatEndpoints
         try
         {
             IEnumerable<SourceDto> sources = context.Sources
-                .Select(passage => new SourceDto(passage.Number, passage.DocumentId, passage.FileName, passage.PageNumber));
+                .Select(passage => new SourceDto(passage.Number, passage.DocumentId, passage.FileName, passage.PageNumber, passage.Text, passage.ChunkId));
             await WriteEventGuardedAsync(httpContext, writeLock, "sources", sources, cancellationToken);
 
             if (firstDelta is not null)

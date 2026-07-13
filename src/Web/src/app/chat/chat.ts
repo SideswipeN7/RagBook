@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { ApiKeyStore } from '../core/api-key.store';
 import { ChatExchange, ChatScopeSelection, ChatStore } from '../core/chat.store';
+import { ChatAnswer } from './chat-answer/chat-answer';
 import { ScopeSelector } from './scope-selector/scope-selector';
 import { shouldStickToBottom } from './scroll-stick';
 
@@ -21,7 +22,7 @@ import { shouldStickToBottom } from './scroll-stick';
 @Component({
   selector: 'app-chat',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ScopeSelector],
+  imports: [ScopeSelector, ChatAnswer],
   templateUrl: './chat.html',
   styleUrl: './chat.scss',
 })

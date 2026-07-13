@@ -221,3 +221,13 @@ by Aspire); running the API standalone requires that connection string in config
   `Rag:StreamHeartbeatSeconds` (all writes serialized by a `SemaphoreSlim`) + client-disconnect cancellation.
   **TestServer gotcha:** cancelling the send token alone does NOT trigger `RequestAborted` — **dispose** the
   response/stream to simulate a client disconnect (`FakeStreamingAnswerGenerator.CancellationObserved`).
+- **Citations (US-16, `core/citation-parser.ts` + `chat/chat-answer`)**: the `sources` event is **additively**
+  extended with per-passage `text` (full chunk) + `chunkId` — mapping is **deterministic from the prompt data**
+  (`GroundingPassage`/`SourceDto` carry `ChunkId`; `PromptBuilder` threads `RetrievedChunk.ChunkId`), never
+  parsed from the model. `citation-parser.ts` is a **pure** `parseCitations(answer, validNumbers)→Segment[]`
+  (`{type:'text'|'citation'}`): out-of-range `[n]` and an incomplete mid-stream `[1` stay **text** (+
+  `console.warn` for out-of-range). `chat-answer` (OnPush/signals, `input.required<ChatExchange>()`) owns the
+  answer render + **used** sources (client-derived ~200-char snippet) + a collapsed *"pozostałe przeszukane
+  fragmenty"* + an **in-app preview panel** (no native dialog). The preview reads the **captured** `text`, so a
+  citation survives its document's deletion (AC-4; full persistence is US-18). `chat.html` keeps the question /
+  status / no-basis note; `chat-answer` owns answer+sources+preview. Event names/order are unchanged.

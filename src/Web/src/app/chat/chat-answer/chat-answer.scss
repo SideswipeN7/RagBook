@@ -1,0 +1,141 @@
+:host {
+  display: contents;
+}
+
+.turn__answer {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--color-body-strong);
+
+  &--partial {
+    color: var(--color-body);
+  }
+}
+
+.cite {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--color-primary-active);
+    text-decoration: underline;
+  }
+}
+
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__item {
+    margin: 0;
+  }
+
+  &__link {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-xs);
+    width: 100%;
+    padding: var(--space-xs);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-card);
+    color: var(--color-body);
+    font: inherit;
+    font-size: 0.8125rem;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--color-primary);
+    }
+  }
+
+  &__num {
+    font-weight: 600;
+    color: var(--color-primary);
+  }
+
+  &__meta {
+    color: var(--color-body-strong);
+  }
+
+  &__snippet {
+    flex: 1 1 100%;
+    color: var(--color-muted);
+  }
+
+  &__note {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--color-warning);
+  }
+
+  &__more {
+    font-size: 0.8125rem;
+    color: var(--color-body);
+
+    summary {
+      cursor: pointer;
+      padding: 2px 0;
+    }
+  }
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas);
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+
+  &__title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-body-strong);
+  }
+
+  &__close {
+    flex: 0 0 auto;
+    padding: 0 var(--space-xs);
+    border: 0;
+    background: transparent;
+    color: var(--color-body);
+    font-size: 1.125rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  &__text {
+    margin: 0;
+    white-space: pre-wrap;
+    font-size: 0.875rem;
+    color: var(--color-body);
+  }
+}

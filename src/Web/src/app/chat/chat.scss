@@ -87,26 +87,9 @@
     color: var(--color-body-strong);
   }
 
-  &__answer {
-    margin: 0;
-    white-space: pre-wrap;
-    color: var(--color-body-strong);
-
-    &--partial {
-      color: var(--color-body);
-    }
-  }
-
   &__note {
     margin: 0;
     font-size: 0.875rem;
-    color: var(--color-body);
-  }
-
-  &__sources {
-    margin: 0;
-    padding-left: var(--space-md);
-    font-size: 0.8125rem;
     color: var(--color-body);
   }
 

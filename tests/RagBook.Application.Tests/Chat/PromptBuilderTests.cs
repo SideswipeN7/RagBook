@@ -25,6 +25,21 @@ public sealed class PromptBuilderTests
     }
 
     [Fact]
+    public void Should_CarryChunkId_And_Text_OnEachSource()
+    {
+        // Arrange (US-16) — the citation mapping key must be the chunk's id, from the prompt data.
+        var chunkId = Guid.NewGuid();
+        var passage = new RetrievedChunk(chunkId, Guid.NewGuid(), "a.pdf", "pełny tekst chunka", 1, 0.1);
+
+        // Act
+        GroundedContext context = CreateSut().Build("q", [passage]);
+
+        // Assert
+        context.Sources[0].ChunkId.Should().Be(chunkId);
+        context.Sources[0].Text.Should().Be("pełny tekst chunka");
+    }
+
+    [Fact]
     public void Should_NumberPassages_MostRelevantFirst_WithFileAndPage()
     {
         // Arrange

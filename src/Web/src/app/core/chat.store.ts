@@ -8,12 +8,16 @@ export interface ChatScopeSelection {
   readonly label: string;
 }
 
-/** A grounding source from the `sources` event (US-14 `SourceDto`); rendered plainly (clickable in US-16). */
+/** A grounding source from the `sources` event (US-14 `SourceDto`); its `[n]` is clickable in US-16. */
 export interface Source {
   readonly number: number;
   readonly documentId: string;
   readonly fileName: string;
   readonly pageNumber: number | null;
+  /** Full chunk text — powers the citation preview; captured in the exchange so it survives document deletion (US-16 AC-4). */
+  readonly text: string;
+  /** The chunk id — the deterministic `[n]`→chunk mapping key (US-16). */
+  readonly chunkId: string;
 }
 
 /** One question/answer exchange in the in-memory thread (US-15). */
