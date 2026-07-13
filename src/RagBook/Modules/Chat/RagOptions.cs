@@ -25,4 +25,10 @@ public sealed class RagOptions
 
     /// <summary>Maximum length of a question; a longer one is rejected as <c>chat.invalid_question</c> (US-14).</summary>
     public int MaxQuestionChars { get; set; } = 2000;
+
+    /// <summary>
+    /// Interval, in seconds, between keep-alive SSE comments during a long answer stream (US-15). Prevents an
+    /// intermediary (e.g. Cloud Run proxy) idle-timeout from cutting the stream.
+    /// </summary>
+    public int StreamHeartbeatSeconds { get; set; } = 15;
 }

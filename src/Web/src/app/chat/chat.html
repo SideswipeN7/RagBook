@@ -1,0 +1,63 @@
+<section class="chat" aria-label="Czat z dokumentami">
+  <header class="chat__bar">
+    <span class="chat__chip" title="Aktywny zakres">{{ scope().label }}</span>
+    <app-scope-selector (scopeChange)="onScope($event)" />
+  </header>
+
+  <div #threadEl class="chat__thread" (scroll)="onScroll()">
+    @for (exchange of thread(); track exchange.id) {
+      <article class="turn">
+        <p class="turn__question">{{ exchange.question }}</p>
+
+        @if (exchange.answer) {
+          <p class="turn__answer" [class.turn__answer--partial]="exchange.status === 'interrupted'">{{ exchange.answer }}</p>
+        }
+
+        @if (exchange.status === 'complete' && !exchange.groundsFound) {
+          <p class="turn__note" role="status">Brak podstaw w wybranym zakresie.</p>
+        }
+
+        @if (exchange.sources.length) {
+          <ul class="turn__sources" aria-label="Źródła">
+            @for (source of exchange.sources; track source.number) {
+              <li>[{{ source.number }}] {{ source.fileName }}@if (source.pageNumber !== null) {, s. {{ source.pageNumber }}}</li>
+            }
+          </ul>
+        }
+
+        @if (exchange.status === 'interrupted') {
+          <p class="turn__meta">Przerwano.</p>
+        }
+
+        @if (exchange.status === 'error') {
+          <p class="turn__error" role="alert">
+            {{ exchange.errorMessage }}
+            <button type="button" class="chat__btn chat__btn--ghost" (click)="retry(exchange)">Spróbuj ponownie</button>
+          </p>
+        }
+      </article>
+    }
+  </div>
+
+  @if (chatLocked()) {
+    <p class="chat__locked" role="status">
+      Skonfiguruj klucz API w ustawieniach powyżej, aby zadać pytanie.
+    </p>
+  } @else {
+    <form class="chat__composer" (submit)="$event.preventDefault(); send(input)">
+      <textarea
+        #input
+        class="chat__input"
+        rows="2"
+        placeholder="Zadaj pytanie do swoich dokumentów…"
+        aria-label="Pytanie"
+        (keydown.enter)="$event.preventDefault(); send(input)"
+      ></textarea>
+      @if (isStreaming()) {
+        <button type="button" class="chat__btn chat__btn--ghost" (click)="stop()">Zatrzymaj</button>
+      } @else {
+        <button type="submit" class="chat__btn">Wyślij</button>
+      }
+    </form>
+  }
+</section>

@@ -283,6 +283,25 @@ POST /api/chat/ask {question, scope}
 - **Config-driven** (`Rag:TopK`/`SimilarityThreshold`/`MaxContextChars`, `Anthropic:GenerationModel`/`MaxOutputTokens`).
 - **Deliberate MVP simplifications** (noted): no re-ranking (cross-encoder), no hybrid BM25+vector, no query rewriting.
 
+## Streaming SSE — chat UI (US-15)
+
+The Angular chat consumes US-14's stream **live** and hardens it:
+
+- **Streaming fetch, not `HttpClient`/`EventSource`.** The endpoint is a `POST` returning a token stream, so
+  `ChatStore` reads it with `fetch` + `response.body` (ReadableStream) and a pure `SseParser` — appending each
+  `token` to a **multi-turn in-memory thread** (reset on reload; history is US-18). The request carries the
+  session cookie (`credentials: 'same-origin'`).
+- **Stop = `AbortController`.** Stopping (or asking again — one active generation) aborts the fetch; the server
+  sees the disconnect and **cancels generation** (the request `CancellationToken`, already flowed in US-14) —
+  no wasted tokens. The partial answer stays, marked *interrupted*.
+- **Errors never truncate silently.** An `error` event, a non-2xx ProblemDetails, or a stream that ends
+  **without** `done` shows the partial text + a code-mapped **PL** message + **Try again**.
+- **Scope selector** (from the tree): All / a folder / a **ready** document, shown as a chip and sent with the
+  question. **Locked** when no key (links to settings); a **no-basis** completion shows a neutral note (full
+  refusal UX is US-17; clickable `[n]` citations are US-16).
+- **Keep-alive.** During a long stream the backend emits an SSE comment every `Rag:StreamHeartbeatSeconds`
+  (writes serialized with a semaphore) so an intermediary idle-timeout does not cut the answer.
+
 ### Known limitations
 
 - The BYOK key store is **process-local** (`IMemoryCache`). On a multi-instance deployment a request could

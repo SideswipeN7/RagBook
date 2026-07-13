@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 using RagBook.API.ProblemDetails;
+using RagBook.Modules.Chat;
 using RagBook.Modules.Chat.Domain;
 using RagBook.Modules.Chat.Errors;
 using RagBook.Modules.Settings.Domain;
@@ -28,6 +30,7 @@ public static class ChatEndpoints
             IAnthropicClientFactory clientFactory,
             IAskQuestionPipeline pipeline,
             IAnswerGenerator generator,
+            IOptions<RagOptions> ragOptions,
             CancellationToken cancellationToken) =>
         {
             if (!TryBuildScope(request.Scope, out ChatScope scope))
@@ -61,7 +64,7 @@ public static class ChatEndpoints
                 return;
             }
 
-            await StreamAnswerAsync(httpContext, generator, outcome.Context!, cancellationToken);
+            await StreamAnswerAsync(httpContext, generator, outcome.Context!, ragOptions.Value.StreamHeartbeatSeconds, cancellationToken);
         });
 
         return endpoints;
@@ -77,6 +80,7 @@ public static class ChatEndpoints
         HttpContext httpContext,
         IAnswerGenerator generator,
         GroundedContext context,
+        int heartbeatSeconds,
         CancellationToken cancellationToken)
     {
         await using IAsyncEnumerator<string> deltas = generator.GenerateAsync(context, cancellationToken).GetAsyncEnumerator(cancellationToken);
@@ -97,38 +101,108 @@ public static class ChatEndpoints
 
         StartEventStream(httpContext);
 
-        IEnumerable<SourceDto> sources = context.Sources
-            .Select(passage => new SourceDto(passage.Number, passage.DocumentId, passage.FileName, passage.PageNumber));
-        await WriteEventAsync(httpContext, "sources", sources, cancellationToken);
+        // One writer for both producers (events + the keep-alive) so their writes never interleave (US-15 FR-010).
+        using var writeLock = new SemaphoreSlim(1, 1);
+        using var streamDone = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        Task heartbeat = HeartbeatAsync(httpContext, writeLock, heartbeatSeconds, streamDone.Token);
 
-        if (firstDelta is not null)
+        try
         {
-            await WriteEventAsync(httpContext, "token", new { text = firstDelta }, cancellationToken);
-        }
+            IEnumerable<SourceDto> sources = context.Sources
+                .Select(passage => new SourceDto(passage.Number, passage.DocumentId, passage.FileName, passage.PageNumber));
+            await WriteEventGuardedAsync(httpContext, writeLock, "sources", sources, cancellationToken);
 
-        while (true)
-        {
-            string next;
-            try
+            if (firstDelta is not null)
             {
-                if (!await deltas.MoveNextAsync())
+                await WriteEventGuardedAsync(httpContext, writeLock, "token", new { text = firstDelta }, cancellationToken);
+            }
+
+            while (true)
+            {
+                string next;
+                try
                 {
-                    break;
+                    if (!await deltas.MoveNextAsync())
+                    {
+                        break;
+                    }
+
+                    next = deltas.Current;
+                }
+                catch (AnswerGenerationException exception)
+                {
+                    await WriteEventGuardedAsync(httpContext, writeLock, "error", new { code = ToError(exception.Failure).Code }, cancellationToken);
+
+                    return;
                 }
 
-                next = deltas.Current;
+                await WriteEventGuardedAsync(httpContext, writeLock, "token", new { text = next }, cancellationToken);
             }
-            catch (AnswerGenerationException exception)
+
+            await WriteEventGuardedAsync(httpContext, writeLock, "done", new { groundsFound = true }, cancellationToken);
+        }
+        finally
+        {
+            await streamDone.CancelAsync();
+            try
             {
-                await WriteEventAsync(httpContext, "error", new { code = ToError(exception.Failure).Code }, cancellationToken);
-
-                return;
+                await heartbeat;
             }
+            catch (OperationCanceledException)
+            {
+                // Expected — the heartbeat is cancelled when the stream ends.
+            }
+        }
+    }
 
-            await WriteEventAsync(httpContext, "token", new { text = next }, cancellationToken);
+    private static async Task HeartbeatAsync(HttpContext httpContext, SemaphoreSlim writeLock, int intervalSeconds, CancellationToken cancellationToken)
+    {
+        if (intervalSeconds <= 0)
+        {
+            return;
         }
 
-        await WriteEventAsync(httpContext, "done", new { groundsFound = true }, cancellationToken);
+        var interval = TimeSpan.FromSeconds(intervalSeconds);
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(interval, cancellationToken);
+                await writeLock.WaitAsync(cancellationToken);
+                try
+                {
+                    await httpContext.Response.WriteAsync(": keep-alive\n\n", cancellationToken);
+                    await httpContext.Response.Body.FlushAsync(cancellationToken);
+                }
+                finally
+                {
+                    writeLock.Release();
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal: the stream finished or the client disconnected.
+        }
+    }
+
+    private static async Task WriteEventGuardedAsync(
+        HttpContext httpContext,
+        SemaphoreSlim writeLock,
+        string eventName,
+        object payload,
+        CancellationToken cancellationToken)
+    {
+        await writeLock.WaitAsync(cancellationToken);
+        try
+        {
+            await WriteEventAsync(httpContext, eventName, payload, cancellationToken);
+        }
+        finally
+        {
+            writeLock.Release();
+        }
     }
 
     private static bool TryBuildScope(ScopeDto dto, out ChatScope scope)
