@@ -34,6 +34,7 @@ builder.Services.Configure<AnthropicOptions>(builder.Configuration.GetSection(An
 builder.Services.Configure<ChunkingOptions>(builder.Configuration.GetSection(ChunkingOptions.SectionName));
 builder.Services.Configure<EmbeddingOptions>(builder.Configuration.GetSection(EmbeddingOptions.SectionName));
 builder.Services.Configure<RagOptions>(builder.Configuration.GetSection(RagOptions.SectionName));
+builder.Services.Configure<ChatOptions>(builder.Configuration.GetSection(ChatOptions.SectionName));
 
 builder.Services.AddApp();
 

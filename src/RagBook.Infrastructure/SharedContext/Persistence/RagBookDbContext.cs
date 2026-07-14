@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using RagBook.Modules.Chat.Domain;
 using RagBook.Modules.Documents.Domain;
 using RagBook.Modules.Folders.Domain;
 using RagBook.Modules.Session.Domain;
@@ -28,6 +29,12 @@ public sealed class RagBookDbContext(DbContextOptions<RagBookDbContext> options,
 
     /// <summary>Indexed chunks of documents with their embedding vectors (US-06).</summary>
     public DbSet<Chunk> Chunks => Set<Chunk>();
+
+    /// <summary>Session-owned chat conversations (US-18).</summary>
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+
+    /// <summary>Ordered messages within conversations (US-18).</summary>
+    public DbSet<Message> Messages => Set<Message>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)

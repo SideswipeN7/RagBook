@@ -26,4 +26,11 @@ public static class ChatErrors
     /// <summary>The generation provider is unavailable or timed out (US-14 AC-5).</summary>
     public static readonly Error ProviderUnavailable =
         Error.Unavailable("chat.provider_unavailable", "The AI provider is temporarily unavailable. Please try again.");
+
+    /// <summary>
+    /// The conversation does not exist or belongs to another session (US-18). 404 — never disclose existence,
+    /// consistent with session isolation (US-01).
+    /// </summary>
+    public static readonly Error ConversationNotFound =
+        Error.NotFound("chat.conversation_not_found", "The conversation no longer exists.");
 }
