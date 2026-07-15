@@ -110,7 +110,7 @@ history; US5 = session isolation; Polish = delete + docs.
 
 - [X] T021 [P] `DeleteConversation`: slice (`ICommand`, hard delete — FK cascade removes messages) + `DELETE /api/conversations/{id}` + integration test (cascade removes messages; cross-session → 404) + frontend delete behind the **design-system confirm dialog** (never `window.confirm`) + spec — `Features/Conversations/DeleteConversation/*`, `ConversationEndpoints.cs`, `conversation-list` + `conversations.store`.
 - [X] T022 [P] Docs: README **"Historia rozmowy (US-18)"** — persisted multi-turn conversations, per-question retrieval + last-`HistoryPairs` context, the retrieval trade-off (purely-referential follow-ups; future work: condensing question), `sources_json` survives document deletion, session isolation; AGENTS.md durable notes (`Conversation`/`Message` entities + isolation filter; `ChatTurnCompleted : IExternalEvent` outbox persistence; user message sync at ask start; `ChatOptions.HistoryPairs`; ask `+= conversationId`; `ChatStore` conversation-backed; no SSE contract change).
-- [ ] T023 Full green run — `npm test` in `src/Web` and `dotnet test` (Domain + Application + Testcontainers Integration; Docker up; migration applied) — then the critical-analysis pass on the diff before opening the PR (repo memory: critical-analysis-before-pr). Then PR to master.
+- [X] T023 Full green run — `npm test` in `src/Web` and `dotnet test` (Domain + Application + Testcontainers Integration; Docker up; migration applied) — then the critical-analysis pass on the diff before opening the PR (repo memory: critical-analysis-before-pr). Then PR to master.
 
 ---
 
