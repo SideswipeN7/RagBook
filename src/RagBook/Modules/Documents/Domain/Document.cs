@@ -177,4 +177,15 @@ public sealed class Document : ISessionOwned, IAuditable
         FailureReason = reason;
         ChunkCount = 0;
     }
+
+    /// <summary>
+    /// Moves the document to <paramref name="folderId"/> (US-10), or to the root when <c>null</c>. Only the
+    /// owning folder changes — the indexed content (chunks/vectors) is untouched, since a folder is just an
+    /// attribute of the document. Movability regardless of <see cref="Status"/> is intentional (a Processing
+    /// document may be reorganised — the folder does not affect the pipeline).
+    /// </summary>
+    public void MoveToFolder(Guid? folderId)
+    {
+        FolderId = folderId;
+    }
 }

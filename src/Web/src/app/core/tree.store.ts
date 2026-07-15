@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { formatFileSize } from './file-size';
 
@@ -50,6 +50,14 @@ export type TreeNode = FolderNode | DocumentNode;
 const EXPANDED_KEY = 'ragbook.tree.expanded';
 const GENERIC_FAILURE = 'Przetwarzanie nie powiodło się.';
 
+/** Stable move-error codes → Polish messages surfaced when a move rolls back (US-10). */
+const MOVE_ERROR_MESSAGES: Record<string, string> = {
+  'document.not_found': 'Plik już nie istnieje.',
+  'folder.not_found': 'Folder docelowy już nie istnieje.',
+  'document.read_only': 'Ten plik jest tylko do odczytu i nie można go przenieść.',
+};
+const GENERIC_MOVE_ERROR = 'Nie udało się przenieść pliku. Spróbuj ponownie.';
+
 /**
  * Shared, signal-based store of the folder+document tree (US-07). Fetches the whole view from
  * `GET /api/tree` in one request and composes the nested tree on the client; every mutation
@@ -68,6 +76,49 @@ export class TreeStore {
 
   /** True when the session has no folders and no documents (drives the empty state). */
   readonly isEmpty = computed(() => this.folders().length === 0 && this.documents().length === 0);
+
+  /** The reason a move rolled back, for a design-system notice (US-10); null when clear. */
+  readonly moveError = signal<string | null>(null);
+
+  /**
+   * Moves a document to a folder (or the root when <c>null</c>) — **optimistically** (US-10): the tree recomposes
+   * at once, then the change is sent. A drop onto the current folder is a no-op (no request). On failure the
+   * document snaps back to its previous folder and {@link moveError} carries the reason.
+   */
+  moveDocument(documentId: string, targetFolderId: string | null): void {
+    const document = this.documents().find((candidate) => candidate.id === documentId);
+    if (document === undefined || document.folderId === targetFolderId) {
+      return; // unknown document, or already there — no request (FR-006)
+    }
+
+    const previousFolderId = document.folderId;
+    this.setDocumentFolder(documentId, targetFolderId); // optimistic
+    this.moveError.set(null);
+
+    this.http.patch(`/api/documents/${documentId}/folder`, { folderId: targetFolderId }).subscribe({
+      error: (error: HttpErrorResponse) => {
+        this.setDocumentFolder(documentId, previousFolderId); // rollback
+        this.moveError.set(this.moveErrorMessage(error));
+      },
+    });
+  }
+
+  /** Clears the move-error notice. */
+  clearMoveError(): void {
+    this.moveError.set(null);
+  }
+
+  private setDocumentFolder(documentId: string, folderId: string | null): void {
+    this.documents.update((documents) =>
+      documents.map((document) => (document.id === documentId ? { ...document, folderId } : document)),
+    );
+  }
+
+  private moveErrorMessage(error: HttpErrorResponse): string {
+    const code = (error.error as { code?: string } | null)?.code;
+
+    return (code && MOVE_ERROR_MESSAGES[code]) || GENERIC_MOVE_ERROR;
+  }
 
   /** Re-reads the whole tree from the backend. Call after any upload, delete, or folder mutation. */
   refresh(): void {

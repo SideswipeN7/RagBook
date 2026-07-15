@@ -265,3 +265,14 @@ by Aspire); running the API standalone requires that connection string in config
   (`load(id)` maps `GET /{id}` messages → `ChatExchange[]`, state→status, `sources`→`Source[]`; `reset(id)`; `ask`
   carries `conversationId`; keeps `fetch` for SSE); `conversation-list` sidebar ("Nowa rozmowa" + switch + delete
   via **inline design-system confirm**, never `window.confirm`). SSE event names/order unchanged.
+- **Move document / drag & drop (US-10, `Documents/MoveDocument` + `documents/tree`)**: a move is a folder-attribute
+  change — `PATCH /api/documents/{id}/folder` (`{folderId: guid|null}`, null = root) → `MoveDocumentCommand` →
+  handler validates ownership (`document.not_found`), read-only demo (`document.read_only`, 409), target folder in
+  session (`IFolderReference` → `folder.not_found`), no-ops the same folder (no save), else `Document.MoveToFolder`
+  + save via `IDocumentMoveRepository`. **Chunks/vectors untouched** (folder is an attribute — pinned by a test).
+  Frontend: `TreeStore.moveDocument(documentId, targetFolderId|null)` is **optimistic** (rewrites the doc's
+  `folderId` in the `documents` signal → `roots` computed recomposes) then `PATCH`; on error **reverts** + sets
+  `moveError` (design-system notice); a drop onto the current folder issues no request. `@angular/cdk/drag-drop`:
+  document rows `cdkDrag`, folder rows + a root zone `cdkDropList` in a `cdkDropListGroup`, `(cdkDropListDropped)`
+  → `onDrop(doc, folderId)`; a "Przenieś do…" menu (`chooseMove`) calls the same `moveDocument` (accessibility
+  parity). Read-only guard tested at the Application tier (a persistable demo doc arrives with US-03).

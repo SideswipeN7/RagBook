@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FolderNode } from '../../core/tree.store';
+import { DocumentNode, FolderNode, TreeStore } from '../../core/tree.store';
 import { DocumentTree } from './document-tree';
 
 const folders = [
@@ -42,6 +42,43 @@ describe('DocumentTree', () => {
 
     expect(text).toContain('Umowy'); // folder
     expect(text).toContain('root.pdf'); // root document (top-level leaf)
+  });
+
+  it('moves a dropped document onto a folder via the store (US-10 AC-1)', () => {
+    loadTree();
+    const spy = spyOn(TestBed.inject(TreeStore), 'moveDocument');
+
+    fixture.componentInstance.onDrop({ id: 'd2' } as DocumentNode, 'a');
+
+    expect(spy).toHaveBeenCalledWith('d2', 'a');
+  });
+
+  it('moves a dropped document onto the root zone (US-10 AC-4)', () => {
+    loadTree();
+    const spy = spyOn(TestBed.inject(TreeStore), 'moveDocument');
+
+    fixture.componentInstance.onDrop({ id: 'd1' } as DocumentNode, null);
+
+    expect(spy).toHaveBeenCalledWith('d1', null);
+  });
+
+  it('"Przenieś do…" menu moves via the same store action as a drop (US-10 AC-5)', () => {
+    loadTree();
+    const spy = spyOn(TestBed.inject(TreeStore), 'moveDocument');
+
+    fixture.componentInstance.chooseMove('d2', 'a');
+
+    expect(spy).toHaveBeenCalledWith('d2', 'a');
+    expect(fixture.componentInstance.movingId()).toBeNull();
+  });
+
+  it('highlights the hovered drop target (US-10 AC-3)', () => {
+    const el = loadTree();
+
+    fixture.componentInstance.dropTarget.set('a');
+    fixture.detectChanges();
+
+    expect(el.querySelector('.tree__row--drop')).toBeTruthy();
   });
 
   it('reveals a folder document when the folder is expanded', () => {

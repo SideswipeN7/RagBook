@@ -31,4 +31,11 @@ public static class DocumentErrors
     /// </summary>
     public static readonly Error TargetFolderNotFound =
         Error.NotFound("folder.not_found", "The target folder does not exist.");
+
+    /// <summary>
+    /// The document is a read-only demo document (US-03 origin) and cannot be reorganised (US-10). A conflict
+    /// with the resource's read-only nature (→ 409) — it exists and the request is well-formed.
+    /// </summary>
+    public static readonly Error ReadOnly =
+        Error.Conflict("document.read_only", "This document is read-only and cannot be moved.");
 }

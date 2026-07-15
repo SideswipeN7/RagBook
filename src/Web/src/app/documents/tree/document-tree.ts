@@ -1,9 +1,10 @@
+import { CdkDrag, CdkDropList, CdkDropListGroup } from '@angular/cdk/drag-drop';
 import { CdkTreeModule, NestedTreeControl } from '@angular/cdk/tree';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { DocumentActionsStore } from '../../core/document-actions.store';
 import { FolderTreeStore, MAX_FOLDER_DEPTH } from '../../core/folder-tree.store';
-import { FolderNode, TreeNode, TreeStore } from '../../core/tree.store';
+import { DocumentNode, FolderNode, TreeNode, TreeStore } from '../../core/tree.store';
 import { DocumentRow } from './document-row';
 
 const FOLDER_ERROR_MESSAGES: Record<string, string> = {
@@ -24,7 +25,7 @@ const FOLDER_ERROR_MESSAGES: Record<string, string> = {
 @Component({
   selector: 'app-document-tree',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkTreeModule, DocumentRow],
+  imports: [CdkTreeModule, CdkDropListGroup, CdkDropList, CdkDrag, DocumentRow],
   templateUrl: './document-tree.html',
   styleUrl: './document-tree.scss',
 })
@@ -44,6 +45,14 @@ export class DocumentTree {
   readonly confirmingDeleteId = signal<string | null>(null);
   readonly confirmingDeleteDocumentId = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
+
+  // US-10 drag & drop / "Przenieś do…"
+  readonly folderList = this.store.folders;
+  readonly moveError = this.store.moveError;
+  /** The current drop target: a folder id, `null` for the root zone, or `undefined` for none (highlight). */
+  readonly dropTarget = signal<string | null | undefined>(undefined);
+  /** The document whose "Przenieś do…" picker is open, or null. */
+  readonly movingId = signal<string | null>(null);
 
   private restoring = false;
 
@@ -86,6 +95,32 @@ export class DocumentTree {
 
   hasContent(node: FolderNode): boolean {
     return node.children.length > 0;
+  }
+
+  /** A document was dropped onto a folder (or the root when null) — the store moves it optimistically (US-10). */
+  onDrop(document: DocumentNode, targetFolderId: string | null): void {
+    this.dropTarget.set(undefined);
+    this.store.moveDocument(document.id, targetFolderId);
+  }
+
+  /** Opens the "Przenieś do…" picker for a document (keyboard/menu fallback — US-10 AC-5). */
+  startMove(documentId: string): void {
+    this.resetInlineState();
+    this.movingId.set(documentId);
+  }
+
+  /** Moves the document to the chosen folder (or the root) via the same store action as a drop. */
+  chooseMove(documentId: string, targetFolderId: string | null): void {
+    this.movingId.set(null);
+    this.store.moveDocument(documentId, targetFolderId);
+  }
+
+  cancelMove(): void {
+    this.movingId.set(null);
+  }
+
+  clearMoveErrorNotice(): void {
+    this.store.clearMoveError();
   }
 
   startCreate(parentId: string | null): void {
@@ -155,6 +190,7 @@ export class DocumentTree {
     this.confirmingDeleteId.set(null);
     this.confirmingDeleteDocumentId.set(null);
     this.errorMessage.set(null);
+    this.movingId.set(null);
   }
 
   private showError(error: unknown): void {
