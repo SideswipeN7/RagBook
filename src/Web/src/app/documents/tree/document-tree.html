@@ -25,13 +25,29 @@
       <p class="tree__error" role="alert">{{ message }}</p>
     }
 
+    @if (moveError(); as message) {
+      <p class="tree__error" role="alert">{{ message }}<button type="button" class="tree__btn tree__btn--ghost" (click)="clearMoveErrorNotice()">OK</button></p>
+    }
+
+    <div cdkDropListGroup class="tree__dnd">
     <cdk-tree [dataSource]="roots()" [treeControl]="treeControl">
       <!-- Document leaf -->
       <cdk-tree-node *cdkTreeNodeDef="let node" class="tree__node tree__node--leaf">
-        <div class="tree__row">
+        <div class="tree__row" cdkDrag [cdkDragData]="node">
           <app-document-row [node]="node" />
+          <button type="button" class="tree__btn tree__btn--ghost" (click)="startMove(node.id)">Przenieś do…</button>
           <button type="button" class="tree__btn tree__btn--ghost" (click)="askDeleteDocument(node.id)">Usuń</button>
         </div>
+
+        @if (movingId() === node.id) {
+          <div class="tree__move" role="group" aria-label="Przenieś dokument do…">
+            <button type="button" class="tree__btn" (click)="chooseMove(node.id, null)">Root</button>
+            @for (folder of folderList(); track folder.id) {
+              <button type="button" class="tree__btn" (click)="chooseMove(node.id, folder.id)">{{ folder.name }}</button>
+            }
+            <button type="button" class="tree__btn tree__btn--ghost" (click)="cancelMove()">Anuluj</button>
+          </div>
+        }
 
         @if (confirmingDeleteDocumentId() === node.id) {
           <div class="tree__confirm" role="group" aria-label="Potwierdź usunięcie dokumentu">
@@ -44,7 +60,15 @@
 
       <!-- Folder node -->
       <cdk-nested-tree-node *cdkTreeNodeDef="let node; when: isFolder" class="tree__node">
-        <div class="tree__row">
+        <div
+          class="tree__row"
+          cdkDropList
+          [cdkDropListData]="node.id"
+          (cdkDropListDropped)="onDrop($event.item.data, node.id)"
+          (cdkDropListEntered)="dropTarget.set(node.id)"
+          (cdkDropListExited)="dropTarget.set(undefined)"
+          [class.tree__row--drop]="dropTarget() === node.id"
+        >
           <button
             type="button"
             class="tree__toggle"
@@ -95,5 +119,19 @@
         </div>
       </cdk-nested-tree-node>
     </cdk-tree>
+
+    <!-- Root drop-zone: dropping here moves a document out of any folder (US-10 AC-4). -->
+    <div
+      class="tree__root-zone"
+      cdkDropList
+      [cdkDropListData]="null"
+      (cdkDropListDropped)="onDrop($event.item.data, null)"
+      (cdkDropListEntered)="dropTarget.set(null)"
+      (cdkDropListExited)="dropTarget.set(undefined)"
+      [class.tree__root-zone--drop]="dropTarget() === null"
+    >
+      Upuść tutaj, aby przenieść do głównego katalogu
+    </div>
+    </div>
   }
 </section>

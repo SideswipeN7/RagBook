@@ -42,6 +42,48 @@ describe('TreeStore', () => {
     expect(store.isEmpty()).toBeFalse();
   });
 
+  function folderOf(id: string): string | null | undefined {
+    return store.documents().find((document) => document.id === id)?.folderId;
+  }
+
+  it('optimistically moves a document to a folder and PATCHes it (US-10)', () => {
+    store.refresh();
+    controller.expectOne('/api/tree').flush({ folders, documents });
+
+    store.moveDocument('d2', 'a');
+
+    // Optimistic: the document is under "a" before the response.
+    expect(folderOf('d2')).toBe('a');
+    const request = controller.expectOne('/api/documents/d2/folder');
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.body).toEqual({ folderId: 'a' });
+    request.flush(null);
+    expect(folderOf('d2')).toBe('a'); // stays on success
+  });
+
+  it('issues no request when dropped onto the folder it is already in (SC-005)', () => {
+    store.refresh();
+    controller.expectOne('/api/tree').flush({ folders, documents });
+
+    store.moveDocument('d1', 'a'); // d1 is already in "a"
+
+    expect(folderOf('d1')).toBe('a');
+    // afterEach controller.verify() asserts no PATCH was issued.
+  });
+
+  it('rolls back and sets a move error when the PATCH fails (US-10 AC-2)', () => {
+    store.refresh();
+    controller.expectOne('/api/tree').flush({ folders, documents });
+
+    store.moveDocument('d2', 'a');
+    expect(folderOf('d2')).toBe('a'); // optimistic
+
+    controller.expectOne('/api/documents/d2/folder').flush({ code: 'folder.not_found' }, { status: 404, statusText: 'Not Found' });
+
+    expect(folderOf('d2')).toBeNull(); // reverted
+    expect(store.moveError()).toContain('Folder docelowy już nie istnieje');
+  });
+
   it('reports empty for a fresh session', () => {
     store.refresh();
     controller.expectOne('/api/tree').flush({ folders: [], documents: [] });

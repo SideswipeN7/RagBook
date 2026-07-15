@@ -374,6 +374,24 @@ prior turns, and past conversations survive a reload with their message states +
   follow-up (e.g. a bare "rozwiń") may retrieve weakly. A **condensing/standalone-question rewrite** is the named
   future-work improvement; it is out of scope for the MVP.
 
+## Przenoszenie plików — drag & drop (US-10)
+
+Reorganising documents is direct and instant: drag a document row onto a folder (or the root drop-zone) to move
+it, with a keyboard/menu equivalent so drag-and-drop is never the only path.
+
+- **A move is a folder-attribute change — no re-index.** The backend is a single `UPDATE documents SET folder_id`
+  behind `PATCH /api/documents/{id}/folder` (a `Documents/Move` slice); the document's chunks/vectors are untouched
+  (a folder is just an attribute), validated by a test that the chunk count is identical after a move. It validates
+  ownership (cross-session → 404), the target folder's session existence (via the `IFolderReference` seam), and
+  refuses a read-only demo document (`document.read_only`, 409). A drop onto the current folder is a no-op.
+- **Optimistic update with rollback.** `TreeStore.moveDocument` rewrites the document's folder **locally first**
+  (the tree recomposes instantly via its derived `roots`), then sends the `PATCH`. On failure the document snaps
+  back to its previous folder and a design-system notice explains why — so the optimistic UI never silently
+  diverges from the server. A drop onto the current folder issues **no** request.
+- **Drag-and-drop + a required fallback.** Built on `@angular/cdk/drag-drop` — document rows are draggable, folder
+  nodes and a root drop-zone are drop targets (highlighted on hover, invalid targets inert). A per-document
+  **"Przenieś do…"** menu performs the exact same `moveDocument` for non-pointer users.
+
 ### Known limitations
 
 - The BYOK key store is **process-local** (`IMemoryCache`). On a multi-instance deployment a request could

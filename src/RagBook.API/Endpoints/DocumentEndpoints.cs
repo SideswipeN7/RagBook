@@ -1,6 +1,7 @@
 using RagBook.API.ProblemDetails;
 using RagBook.Modules.Documents.Errors;
 using RagBook.Modules.Documents.Features.DeleteDocument;
+using RagBook.Modules.Documents.Features.MoveDocument;
 using RagBook.Modules.Documents.Features.UploadDocument;
 using RagBook.Shared.Results;
 using Wolverine;
@@ -57,6 +58,18 @@ public static class DocumentEndpoints
             return result.IsSuccess ? Results.NoContent() : ProblemResults.Problem(result.Error);
         });
 
+        // US-10 — move a document to a folder (or the root when folderId is null).
+        endpoints.MapPatch("/api/documents/{id:guid}/folder", async (Guid id, MoveDocumentRequest request, IMessageBus bus, CancellationToken cancellationToken) =>
+        {
+            Result result = await bus.InvokeAsync<Result>(new MoveDocumentCommand(id, request.FolderId), cancellationToken);
+
+            return result.IsSuccess ? Results.NoContent() : ProblemResults.Problem(result.Error);
+        });
+
         return endpoints;
     }
 }
+
+/// <summary>Body for <c>PATCH /api/documents/{id}/folder</c> (US-10). <c>null</c> moves the document to the root.</summary>
+/// <param name="FolderId">The destination folder id, or <c>null</c> for the root.</param>
+public sealed record MoveDocumentRequest(Guid? FolderId);
