@@ -22,15 +22,36 @@ internal static class SseEvents
         return client;
     }
 
-    /// <summary>Posts an ask and parses the SSE (or ProblemDetails) response.</summary>
+    /// <summary>Creates a conversation (US-18) and returns its id.</summary>
+    public static async Task<Guid> CreateConversationAsync(HttpClient client, string scopeType = "all", Guid? targetId = null)
+    {
+        HttpResponseMessage response = await client.PostAsJsonAsync("/api/conversations", new { scope = new { type = scopeType, targetId } });
+        response.EnsureSuccessStatusCode();
+        ConversationSummaryResponse? summary = await response.Content.ReadFromJsonAsync<ConversationSummaryResponse>();
+
+        return summary!.Id;
+    }
+
+    /// <summary>Posts an ask in a fresh conversation (US-18) and returns the SSE (or ProblemDetails) response.</summary>
     public static async Task<HttpResponseMessage> AskAsync(HttpClient client, string question, string scopeType, Guid? targetId = null)
+    {
+        Guid conversationId = await CreateConversationAsync(client);
+
+        return await AskInAsync(client, conversationId, question, scopeType, targetId);
+    }
+
+    /// <summary>Posts an ask in an explicit conversation (US-18) — for multi-turn/persistence tests.</summary>
+    public static async Task<HttpResponseMessage> AskInAsync(HttpClient client, Guid conversationId, string question, string scopeType, Guid? targetId = null)
     {
         return await client.PostAsJsonAsync("/api/chat/ask", new
         {
+            conversationId,
             question,
             scope = new { type = scopeType, targetId },
         });
     }
+
+    private sealed record ConversationSummaryResponse(Guid Id, string Title, string ScopeType, Guid? ScopeTargetId, DateTimeOffset CreatedAt);
 
     /// <summary>Parses a `text/event-stream` body into its ordered events.</summary>
     public static async Task<IReadOnlyList<Event>> ReadAsync(HttpResponseMessage response)

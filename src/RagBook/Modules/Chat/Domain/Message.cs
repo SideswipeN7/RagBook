@@ -7,8 +7,8 @@ namespace RagBook.Modules.Chat.Domain;
 /// One turn in a <see cref="Conversation"/> (US-18): a user question or an assistant answer. Assistant messages
 /// carry a <see cref="State"/> (answered / no-answer / interrupted) and their citations as <see cref="SourcesJson"/>
 /// (the US-16 <c>SourceDto[]</c> shape), so a citation survives its document's deletion (US-16 AC-4). Construction
-/// goes through the factories. <see cref="UserSessionId"/> is stamped centrally on insert — except in the outbox
-/// handler that persists the assistant message outside the request session, where it is set from the event.
+/// goes through the factories. <see cref="UserSessionId"/> is stamped centrally on insert from the ambient
+/// session — the outbox handler that persists the assistant message initializes that session from the event first.
 /// </summary>
 public sealed class Message : ISessionOwned, IAuditable
 {
@@ -71,11 +71,5 @@ public sealed class Message : ISessionOwned, IAuditable
     public static Message Assistant(Guid conversationId, string content, MessageState state, string? sourcesJson)
     {
         return new Message(Guid.NewGuid(), conversationId, MessageRole.Assistant, content, state, sourcesJson);
-    }
-
-    /// <summary>Stamps the owning session explicitly — for the outbox handler that persists outside the request session (US-18).</summary>
-    public void OwnBySession(Guid userSessionId)
-    {
-        UserSessionId = userSessionId;
     }
 }

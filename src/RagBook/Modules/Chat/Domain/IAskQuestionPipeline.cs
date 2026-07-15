@@ -10,6 +10,9 @@ namespace RagBook.Modules.Chat.Domain;
 /// </summary>
 public interface IAskQuestionPipeline
 {
-    /// <summary>Validates + retrieves + thresholds + builds; returns the outcome or a domain failure.</summary>
-    Task<Result<AskOutcome>> PrepareAsync(string question, ChatScope scope, CancellationToken cancellationToken);
+    /// <summary>
+    /// Validates + retrieves + thresholds + builds; returns the outcome or a domain failure. <paramref name="history"/>
+    /// is the recent conversation turns to prepend to the prompt (US-18; empty for a single-turn ask).
+    /// </summary>
+    Task<Result<AskOutcome>> PrepareAsync(string question, ChatScope scope, IReadOnlyList<Message> history, CancellationToken cancellationToken);
 }

@@ -20,7 +20,7 @@ public sealed class AskQuestionPipeline(
     : IAskQuestionPipeline
 {
     /// <inheritdoc />
-    public async Task<Result<AskOutcome>> PrepareAsync(string question, ChatScope scope, CancellationToken cancellationToken)
+    public async Task<Result<AskOutcome>> PrepareAsync(string question, ChatScope scope, IReadOnlyList<Message> history, CancellationToken cancellationToken)
     {
         RagOptions rag = options.Value;
 
@@ -50,7 +50,7 @@ public sealed class AskQuestionPipeline(
             return AskOutcome.InsufficientGrounding;
         }
 
-        GroundedContext context = promptBuilder.Build(trimmed, grounded);
+        GroundedContext context = promptBuilder.Build(trimmed, grounded, history);
 
         // Defensive: if the context budget trimmed away every passage, there is nothing to ground on.
         if (context.Sources.Count == 0)

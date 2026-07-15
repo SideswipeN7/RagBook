@@ -9,6 +9,9 @@ namespace RagBook.Modules.Chat.Domain;
 /// </summary>
 public interface IPromptBuilder
 {
-    /// <summary>Builds the grounded context; <paramref name="passages"/> are ordered most-relevant first (US-13).</summary>
-    GroundedContext Build(string question, IReadOnlyList<RetrievedChunk> passages);
+    /// <summary>
+    /// Builds the grounded context; <paramref name="passages"/> are ordered most-relevant first (US-13), and
+    /// <paramref name="history"/> is the recent conversation turns prepended as context (US-18; empty = single-turn).
+    /// </summary>
+    GroundedContext Build(string question, IReadOnlyList<RetrievedChunk> passages, IReadOnlyList<Message> history);
 }

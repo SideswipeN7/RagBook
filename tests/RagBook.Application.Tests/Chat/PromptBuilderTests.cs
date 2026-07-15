@@ -32,11 +32,33 @@ public sealed class PromptBuilderTests
         var passage = new RetrievedChunk(chunkId, Guid.NewGuid(), "a.pdf", "pełny tekst chunka", 1, 0.1);
 
         // Act
-        GroundedContext context = CreateSut().Build("q", [passage]);
+        GroundedContext context = CreateSut().Build("q", [passage], []);
 
         // Assert
         context.Sources[0].ChunkId.Should().Be(chunkId);
         context.Sources[0].Text.Should().Be("pełny tekst chunka");
+    }
+
+    [Fact]
+    public void Should_PrependConversationHistory_BeforePassages()
+    {
+        // Arrange (US-18) — a prior closed turn as conversational context.
+        var history = new[]
+        {
+            Message.User(Guid.NewGuid(), "Jakie sa punkty umowy?"),
+            Message.Assistant(Guid.NewGuid(), "Sa trzy punkty [1].", MessageState.Answered, sourcesJson: null),
+        };
+        var passages = new[] { Chunk("umowa.pdf", 2, "tresc drugiego punktu", 0.1) };
+
+        // Act
+        GroundedContext context = CreateSut().Build("Rozwin punkt drugi", passages, history);
+
+        // Assert — the recent turns appear as context, before the numbered passage and the current question.
+        context.UserPrompt.Should().Contain("Wcześniejsza rozmowa:");
+        context.UserPrompt.Should().Contain("Użytkownik: Jakie sa punkty umowy?");
+        context.UserPrompt.Should().Contain("Asystent: Sa trzy punkty [1].");
+        context.UserPrompt.IndexOf("Wcześniejsza rozmowa:", StringComparison.Ordinal)
+            .Should().BeLessThan(context.UserPrompt.IndexOf("[1] (umowa.pdf", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -47,7 +69,7 @@ public sealed class PromptBuilderTests
         PromptBuilder sut = CreateSut();
 
         // Act
-        GroundedContext context = sut.Build("Jaki jest okres?", passages);
+        GroundedContext context = sut.Build("Jaki jest okres?", passages, []);
 
         // Assert
         context.Sources.Select(source => source.Number).Should().Equal(1, 2);
@@ -65,7 +87,7 @@ public sealed class PromptBuilderTests
         PromptBuilder sut = CreateSut();
 
         // Act
-        GroundedContext context = sut.Build("q", new[] { Chunk("a.pdf", null, "text", 0.1) });
+        GroundedContext context = sut.Build("q", new[] { Chunk("a.pdf", null, "text", 0.1) }, []);
 
         // Assert
         context.SystemPrompt.Should().Contain("ONLY");
@@ -87,7 +109,7 @@ public sealed class PromptBuilderTests
         PromptBuilder sut = CreateSut(maxContextChars: 90);
 
         // Act
-        GroundedContext context = sut.Build("q", passages);
+        GroundedContext context = sut.Build("q", passages, []);
 
         // Assert — weakest dropped first; the strongest survives, and the budget holds.
         context.Sources.Should().HaveCountLessThan(3);
