@@ -1,0 +1,22 @@
+<div class="convs">
+  <button type="button" class="convs__new" (click)="onNew()">Nowa rozmowa</button>
+
+  <ul class="convs__list" aria-label="Rozmowy">
+    @for (conversation of conversations(); track conversation.id) {
+      <li class="convs__item" [class.convs__item--active]="conversation.id === activeId()">
+        <button type="button" class="convs__open" (click)="onSelect(conversation.id)" [attr.aria-current]="conversation.id === activeId()">
+          {{ title(conversation) }}
+        </button>
+
+        @if (confirmingId() === conversation.id) {
+          <span class="convs__confirm" role="group" aria-label="Potwierdź usunięcie rozmowy">
+            <button type="button" class="convs__btn convs__btn--danger" (click)="confirmDelete(conversation.id, $event)">Tak, usuń</button>
+            <button type="button" class="convs__btn" (click)="cancelDelete($event)">Anuluj</button>
+          </span>
+        } @else {
+          <button type="button" class="convs__del" aria-label="Usuń rozmowę" (click)="askDelete(conversation.id, $event)">×</button>
+        }
+      </li>
+    }
+  </ul>
+</div>

@@ -29,11 +29,15 @@ public sealed class FakeStreamingAnswerGenerator : IAnswerGenerator
     /// <summary>True once the generator observed cancellation (client disconnect / abort — US-15 AC-5).</summary>
     public bool CancellationObserved { get; private set; }
 
+    /// <summary>The last grounded context passed to the generator — lets a test assert the prompt carried history (US-18).</summary>
+    public GroundedContext? LastContext { get; private set; }
+
     /// <summary>Resets the recorded invocation and the script to defaults (call at the start of a test).</summary>
     public void Reset()
     {
         Invoked = false;
         CancellationObserved = false;
+        LastContext = null;
         Deltas = ["Odpowiedź", " brzmi [1]."];
         FailBeforeFirstDelta = null;
         FailAfterFirstDelta = null;
@@ -46,6 +50,7 @@ public sealed class FakeStreamingAnswerGenerator : IAnswerGenerator
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         Invoked = true;
+        LastContext = context;
 
         if (FailBeforeFirstDelta is AnswerGenerationFailure before)
         {

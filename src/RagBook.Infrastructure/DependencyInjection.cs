@@ -97,6 +97,9 @@ public static class DependencyInjection
         // US-13 scoped retrieval — pre-filter (session + ready + scope) then pgvector cosine search.
         services.AddScoped<IScopedRetriever, ScopedRetriever>();
 
+        // US-18 conversation history — session-scoped persistence for conversations + messages.
+        services.AddScoped<IConversationRepository, ConversationRepository>();
+
         // US-14 answer generation — streaming Anthropic client. The generation HttpClient has NO standard
         // total-request-timeout/retry: that would truncate or re-issue a live token stream (C1). Cancellation
         // flows via the request token (client disconnect); transport failures map to provider-unavailable.

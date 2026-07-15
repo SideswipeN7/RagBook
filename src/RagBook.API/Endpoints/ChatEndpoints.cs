@@ -5,9 +5,12 @@ using RagBook.API.ProblemDetails;
 using RagBook.Modules.Chat;
 using RagBook.Modules.Chat.Domain;
 using RagBook.Modules.Chat.Errors;
+using RagBook.Modules.Chat.Features.AskQuestion;
 using RagBook.Modules.Settings.Domain;
 using RagBook.Modules.Settings.Errors;
 using RagBook.Shared.Results;
+using RagBook.Shared.Sessions;
+using Wolverine;
 
 namespace RagBook.API.Endpoints;
 
@@ -31,7 +34,11 @@ public static class ChatEndpoints
             IAnthropicClientFactory clientFactory,
             IAskQuestionPipeline pipeline,
             IAnswerGenerator generator,
+            IConversationRepository conversations,
+            IMessageBus bus,
+            ISessionContext sessionContext,
             IOptions<RagOptions> ragOptions,
+            IOptions<ChatOptions> chatOptions,
             CancellationToken cancellationToken) =>
         {
             if (!TryBuildScope(request.Scope, out ChatScope scope))
@@ -49,7 +56,20 @@ public static class ChatEndpoints
                 return;
             }
 
-            Result<AskOutcome> prepared = await pipeline.PrepareAsync(request.Question, scope, cancellationToken);
+            // US-18 — the ask targets a conversation in the current session (else 404, never disclose existence).
+            Conversation? conversation = await conversations.GetByIdAsync(request.ConversationId, cancellationToken);
+            if (conversation is null)
+            {
+                await WriteProblemAsync(httpContext, ChatErrors.ConversationNotFound);
+
+                return;
+            }
+
+            // Recent turns feed the prompt; select from the prior messages, before this question is persisted.
+            IReadOnlyList<Message> priorMessages = await conversations.ListMessagesAsync(conversation.Id, cancellationToken);
+            IReadOnlyList<Message> history = ConversationHistory.SelectRecent(priorMessages, chatOptions.Value.HistoryPairs);
+
+            Result<AskOutcome> prepared = await pipeline.PrepareAsync(request.Question, scope, history, cancellationToken);
             if (prepared.IsFailure)
             {
                 await WriteProblemAsync(httpContext, prepared.Error);
@@ -57,25 +77,46 @@ public static class ChatEndpoints
                 return;
             }
 
+            // The question is valid — persist the user turn (+ first-question title + current scope) in one save.
+            conversation.SetTitleFromFirstQuestion(request.Question, chatOptions.Value.TitleMaxChars);
+            conversation.UpdateScope(scope);
+            await conversations.AddMessageAsync(Message.User(conversation.Id, request.Question), cancellationToken);
+
             AskOutcome outcome = prepared.Value;
+            TurnResult turn;
             if (!outcome.IsAnswerable)
             {
                 await StreamInsufficientAsync(httpContext, cancellationToken);
+                turn = new TurnResult(string.Empty, AnswerState.NoAnswer, SourcesJson: null);
+            }
+            else
+            {
+                TurnResult? streamed = await StreamAnswerAsync(httpContext, generator, outcome.Context!, ragOptions.Value.StreamHeartbeatSeconds, cancellationToken);
+                if (streamed is null)
+                {
+                    return; // provider failure — ProblemDetails / `error` event already written; no assistant message
+                }
 
-                return;
+                turn = streamed;
             }
 
-            await StreamAnswerAsync(httpContext, generator, outcome.Context!, ragOptions.Value.StreamHeartbeatSeconds, cancellationToken);
+            // Persist the assistant message durably, off the stream (US-18). No token — a client disconnect
+            // (interrupted) must still record the turn.
+            await bus.PublishAsync(new ChatTurnCompleted(conversation.Id, sessionContext.UserSessionId, turn.Answer, turn.State, turn.SourcesJson));
         });
 
         return endpoints;
     }
+
+    /// <summary>The outcome of a streamed (or insufficient) turn, for durable assistant-message persistence (US-18).</summary>
+    private sealed record TurnResult(string Answer, string State, string? SourcesJson);
 
     /// <summary>The terminal <c>done</c> state (US-17). Additive to <c>groundsFound</c>; the frontend keys off this.</summary>
     private static class AnswerState
     {
         public const string Answered = "answered";
         public const string NoAnswer = "no_answer";
+        public const string Interrupted = "interrupted";
     }
 
     private static async Task StreamInsufficientAsync(HttpContext httpContext, CancellationToken cancellationToken)
@@ -85,7 +126,7 @@ public static class ChatEndpoints
         await WriteEventAsync(httpContext, "done", new { groundsFound = false, state = AnswerState.NoAnswer }, cancellationToken);
     }
 
-    private static async Task StreamAnswerAsync(
+    private static async Task<TurnResult?> StreamAnswerAsync(
         HttpContext httpContext,
         IAnswerGenerator generator,
         GroundedContext context,
@@ -105,7 +146,7 @@ public static class ChatEndpoints
         {
             await WriteProblemAsync(httpContext, ToError(exception.Failure));
 
-            return;
+            return null;
         }
 
         StartEventStream(httpContext);
@@ -115,16 +156,18 @@ public static class ChatEndpoints
         using var streamDone = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         Task heartbeat = HeartbeatAsync(httpContext, writeLock, heartbeatSeconds, streamDone.Token);
 
+        var sourceList = context.Sources
+            .Select(passage => new SourceDto(passage.Number, passage.DocumentId, passage.FileName, passage.PageNumber, passage.Text, passage.ChunkId))
+            .ToList();
+        string sourcesJson = JsonSerializer.Serialize(sourceList, JsonOptions);
+        var answer = new StringBuilder();
+
         try
         {
-            IEnumerable<SourceDto> sources = context.Sources
-                .Select(passage => new SourceDto(passage.Number, passage.DocumentId, passage.FileName, passage.PageNumber, passage.Text, passage.ChunkId));
-            await WriteEventGuardedAsync(httpContext, writeLock, "sources", sources, cancellationToken);
+            await WriteEventGuardedAsync(httpContext, writeLock, "sources", sourceList, cancellationToken);
 
             // Accumulate the streamed answer so a completed refusal sentinel maps to NoAnswerFound (US-17). Tokens
             // are still streamed as they arrive — a brief flash of the sentinel before the state switch is accepted.
-            var answer = new StringBuilder();
-
             if (firstDelta is not null)
             {
                 answer.Append(firstDelta);
@@ -147,7 +190,7 @@ public static class ChatEndpoints
                 {
                     await WriteEventGuardedAsync(httpContext, writeLock, "error", new { code = ToError(exception.Failure).Code }, cancellationToken);
 
-                    return;
+                    return null;
                 }
 
                 answer.Append(next);
@@ -156,6 +199,13 @@ public static class ChatEndpoints
 
             string state = GroundingPrompt.IsRefusal(answer.ToString()) ? AnswerState.NoAnswer : AnswerState.Answered;
             await WriteEventGuardedAsync(httpContext, writeLock, "done", new { groundsFound = true, state }, cancellationToken);
+
+            return new TurnResult(answer.ToString(), state, sourcesJson);
+        }
+        catch (OperationCanceledException)
+        {
+            // The client disconnected mid-stream (US-15) — record the partial answer as interrupted (US-18).
+            return new TurnResult(answer.ToString(), AnswerState.Interrupted, sourcesJson);
         }
         finally
         {

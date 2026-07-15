@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatScopeSelection, ChatStore } from './chat.store';
@@ -59,8 +61,60 @@ describe('ChatStore', () => {
   let store: ChatStore;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), ChatStore] });
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), provideHttpClient(), provideHttpClientTesting(), ChatStore],
+    });
     store = TestBed.inject(ChatStore);
+    store.reset('c1'); // US-18 — an ask targets the active conversation
+  });
+
+  it('loads a persisted conversation into the thread with states and citations', async () => {
+    const detail = {
+      id: 'c9',
+      scopeType: 'all',
+      scopeTargetId: null,
+      messages: [
+        { id: 'm1', role: 'user', content: 'pytanie', state: null, sources: null, createdAt: '2026-01-01T00:00:00Z' },
+        {
+          id: 'm2',
+          role: 'assistant',
+          content: 'odpowiedź [1]',
+          state: 'answered',
+          sources: [{ number: 1, documentId: 'd1', fileName: 'a.pdf', pageNumber: 2, text: 'tekst', chunkId: 'ch1' }],
+          createdAt: '2026-01-01T00:00:01Z',
+        },
+      ],
+    };
+
+    const loading = store.load('c9');
+    TestBed.inject(HttpTestingController).expectOne('/api/conversations/c9').flush(detail);
+    await loading;
+
+    const thread = store.thread();
+    expect(thread.length).toBe(1);
+    expect(thread[0].question).toBe('pytanie');
+    expect(thread[0].answer).toBe('odpowiedź [1]');
+    expect(thread[0].status).toBe('complete');
+    expect(thread[0].sources[0].chunkId).toBe('ch1');
+    expect(store.activeConversationId()).toBe('c9');
+  });
+
+  it('maps a persisted no_answer message to the no_answer status', async () => {
+    const detail = {
+      id: 'c9',
+      scopeType: 'all',
+      scopeTargetId: null,
+      messages: [
+        { id: 'm1', role: 'user', content: 'pytanie', state: null, sources: null, createdAt: '2026-01-01T00:00:00Z' },
+        { id: 'm2', role: 'assistant', content: '', state: 'no_answer', sources: null, createdAt: '2026-01-01T00:00:01Z' },
+      ],
+    };
+
+    const loading = store.load('c9');
+    TestBed.inject(HttpTestingController).expectOne('/api/conversations/c9').flush(detail);
+    await loading;
+
+    expect(store.thread()[0].status).toBe('no_answer');
   });
 
   it('streams sources then tokens then completes, sending the session cookie', async () => {

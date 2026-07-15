@@ -1,4 +1,6 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { SseParser } from './sse-parser';
 
 /** The scope a question searches, mirroring US-13/14 (`all` / `folder` / `document`). */
@@ -43,23 +45,66 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 const GENERIC_ERROR = 'Coś poszło nie tak podczas generowania. Spróbuj ponownie.';
 
+/** A persisted message from `GET /api/conversations/{id}` (US-18). */
+interface MessageResponse {
+  readonly id: string;
+  readonly role: 'user' | 'assistant';
+  readonly content: string;
+  readonly state: 'answered' | 'no_answer' | 'interrupted' | null;
+  readonly sources: Source[] | null;
+  readonly createdAt: string;
+}
+
+/** A conversation with its messages (US-18). */
+interface ConversationDetailResponse {
+  readonly id: string;
+  readonly scopeType: 'all' | 'folder' | 'document';
+  readonly scopeTargetId: string | null;
+  readonly messages: MessageResponse[];
+}
+
 /**
  * Consumes US-14's streaming ask (`POST /api/chat/ask`, events `sources`/`token`/`done`/`error`) via a
- * streaming **fetch** + {@link SseParser} (US-15). Holds a multi-turn in-memory thread; `ask` appends tokens
- * incrementally, `stop` aborts the active stream (the server cancels generation on disconnect). One active
- * generation at a time — a new ask aborts the previous.
+ * streaming **fetch** + {@link SseParser} (US-15). Backed by a persisted conversation (US-18): {@link load}
+ * hydrates the thread from stored messages (with their states + citations), {@link reset} starts a fresh
+ * conversation, and `ask` carries the active `conversationId`. One active generation at a time.
  */
 @Injectable({ providedIn: 'root' })
 export class ChatStore {
+  private readonly http = inject(HttpClient);
+
   readonly thread = signal<readonly ChatExchange[]>([]);
+
+  /** The conversation the thread belongs to (US-18); asks target it. */
+  readonly activeConversationId = signal<string | null>(null);
 
   /** True while an exchange is streaming. */
   readonly isStreaming = computed(() => this.thread().some((exchange) => exchange.status === 'streaming'));
 
   private controller: AbortController | null = null;
 
-  /** Asks a question in the given scope; aborts any in-flight stream first (one active). */
+  /** Starts a fresh, empty conversation thread (US-18 "Nowa rozmowa"). */
+  reset(conversationId: string): void {
+    this.abortActive();
+    this.activeConversationId.set(conversationId);
+    this.thread.set([]);
+  }
+
+  /** Loads a persisted conversation's messages into the thread, preserving states + citations (US-18). */
+  async load(conversationId: string): Promise<void> {
+    this.abortActive();
+    this.activeConversationId.set(conversationId);
+    const detail = await firstValueFrom(this.http.get<ConversationDetailResponse>(`/api/conversations/${conversationId}`));
+    this.thread.set(this.toThread(detail));
+  }
+
+  /** Asks a question in the active conversation; aborts any in-flight stream first (one active). */
   async ask(question: string, scope: ChatScopeSelection): Promise<void> {
+    const conversationId = this.activeConversationId();
+    if (conversationId === null) {
+      return;
+    }
+
     this.abortActive();
 
     const id = crypto.randomUUID();
@@ -76,7 +121,7 @@ export class ChatStore {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, scope: { type: scope.type, targetId: scope.targetId ?? null } }),
+        body: JSON.stringify({ conversationId, question, scope: { type: scope.type, targetId: scope.targetId ?? null } }),
         signal: controller.signal,
       });
 
@@ -142,6 +187,56 @@ export class ChatStore {
       // The stream ended without a `done` — a truncation, not a clean answer.
       this.patch(id, { status: 'error', errorMessage: GENERIC_ERROR });
     }
+  }
+
+  /** Maps persisted messages into thread exchanges, pairing each user question with its assistant answer. */
+  private toThread(detail: ConversationDetailResponse): ChatExchange[] {
+    const scope = this.scopeSelection(detail.scopeType, detail.scopeTargetId);
+    const exchanges: ChatExchange[] = [];
+    let pendingUser: MessageResponse | null = null;
+
+    for (const message of detail.messages) {
+      if (message.role === 'user') {
+        pendingUser = message;
+      } else if (message.role === 'assistant' && pendingUser !== null) {
+        exchanges.push({
+          id: message.id,
+          question: pendingUser.content,
+          scope,
+          status: this.statusOf(message.state),
+          answer: message.content,
+          sources: message.sources ?? [],
+          groundsFound: message.state !== 'no_answer',
+          errorMessage: null,
+        });
+        pendingUser = null;
+      }
+    }
+
+    if (pendingUser !== null) {
+      exchanges.push({
+        id: pendingUser.id,
+        question: pendingUser.content,
+        scope,
+        status: 'complete',
+        answer: '',
+        sources: [],
+        groundsFound: true,
+        errorMessage: null,
+      });
+    }
+
+    return exchanges;
+  }
+
+  private statusOf(state: MessageResponse['state']): ChatExchange['status'] {
+    return state === 'no_answer' ? 'no_answer' : state === 'interrupted' ? 'interrupted' : 'complete';
+  }
+
+  private scopeSelection(type: ChatScopeSelection['type'], targetId: string | null): ChatScopeSelection {
+    const label = type === 'all' ? 'Wszystkie dokumenty' : type === 'folder' ? 'Wybrany folder' : 'Wybrany dokument';
+
+    return { type, targetId: targetId ?? undefined, label };
   }
 
   private appendToken(id: string, text: string): void {

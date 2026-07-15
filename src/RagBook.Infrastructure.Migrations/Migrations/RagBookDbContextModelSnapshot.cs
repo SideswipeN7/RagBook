@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Pgvector;
 using RagBook.Infrastructure.SharedContext.Persistence;
 
 #nullable disable
@@ -22,6 +21,121 @@ namespace RagBook.Infrastructure.Migrations.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("RagBook.Modules.Chat.Domain.Conversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("modified_by");
+
+                    b.Property<Guid?>("ScopeTargetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("scope_target_id");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("scope_type");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<Guid>("UserSessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_session_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserSessionId")
+                        .HasDatabaseName("ix_conversations_user_session_id");
+
+                    b.ToTable("conversations", (string)null);
+                });
+
+            modelBuilder.Entity("RagBook.Modules.Chat.Domain.Message", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("modified_by");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("role");
+
+                    b.Property<string>("SourcesJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("sources_json");
+
+                    b.Property<string>("State")
+                        .HasColumnType("text")
+                        .HasColumnName("state");
+
+                    b.Property<Guid>("UserSessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_session_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId")
+                        .HasDatabaseName("ix_messages_conversation_id");
+
+                    b.HasIndex("UserSessionId")
+                        .HasDatabaseName("ix_messages_user_session_id");
+
+                    b.ToTable("messages", (string)null);
+                });
 
             modelBuilder.Entity("RagBook.Modules.Documents.Domain.Chunk", b =>
                 {
@@ -240,6 +354,15 @@ namespace RagBook.Infrastructure.Migrations.Migrations
                         .HasDatabaseName("ix_session_resources_user_session_id");
 
                     b.ToTable("session_resources", (string)null);
+                });
+
+            modelBuilder.Entity("RagBook.Modules.Chat.Domain.Message", b =>
+                {
+                    b.HasOne("RagBook.Modules.Chat.Domain.Conversation", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RagBook.Modules.Documents.Domain.Chunk", b =>

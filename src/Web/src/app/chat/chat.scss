@@ -2,7 +2,22 @@
   display: block;
 }
 
+.chat-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-md);
+
+  &__sidebar {
+    flex: 1 1 12rem;
+    min-width: 11rem;
+    max-width: 16rem;
+  }
+}
+
 .chat {
+  flex: 3 1 18rem;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);

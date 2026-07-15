@@ -45,6 +45,8 @@ public class ChatAskApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // A short heartbeat so the US-15 keep-alive test can observe a comment on a delaying stream; fast
         // tests complete well under a second, so no heartbeat fires for them.
         builder.UseSetting("Rag:StreamHeartbeatSeconds", "1");
+        // No durable envelope storage in tests — the ChatTurnCompleted handler runs in-process (US-18).
+        builder.UseSetting("Wolverine:DurabilityEnabled", "false");
 
         if (SimilarityThresholdOverride is double threshold)
         {

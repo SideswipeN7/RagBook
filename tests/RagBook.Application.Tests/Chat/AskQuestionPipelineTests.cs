@@ -46,7 +46,7 @@ public sealed class AskQuestionPipelineTests
         AskQuestionPipeline sut = CreateSut();
 
         // Act
-        Result<AskOutcome> result = await sut.PrepareAsync("What is the term?", ChatScope.All(), CancellationToken.None);
+        Result<AskOutcome> result = await sut.PrepareAsync("What is the term?", ChatScope.All(), [], CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -62,7 +62,7 @@ public sealed class AskQuestionPipelineTests
         AskQuestionPipeline sut = CreateSut();
 
         // Act
-        Result<AskOutcome> result = await sut.PrepareAsync("unrelated", ChatScope.All(), CancellationToken.None);
+        Result<AskOutcome> result = await sut.PrepareAsync("unrelated", ChatScope.All(), [], CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -77,7 +77,7 @@ public sealed class AskQuestionPipelineTests
         AskQuestionPipeline sut = CreateSut();
 
         // Act
-        Result<AskOutcome> result = await sut.PrepareAsync("q", ChatScope.All(), CancellationToken.None);
+        Result<AskOutcome> result = await sut.PrepareAsync("q", ChatScope.All(), [], CancellationToken.None);
 
         // Assert
         result.Value.IsAnswerable.Should().BeFalse();
@@ -92,7 +92,7 @@ public sealed class AskQuestionPipelineTests
         AskQuestionPipeline sut = CreateSut();
 
         // Act
-        Result<AskOutcome> result = await sut.PrepareAsync("q", ChatScope.Folder(Guid.NewGuid()), CancellationToken.None);
+        Result<AskOutcome> result = await sut.PrepareAsync("q", ChatScope.Folder(Guid.NewGuid()), [], CancellationToken.None);
 
         // Assert
         result.IsFailure.Should().BeTrue();
@@ -108,7 +108,7 @@ public sealed class AskQuestionPipelineTests
         AskQuestionPipeline sut = CreateSut();
 
         // Act
-        Result<AskOutcome> result = await sut.PrepareAsync(question, ChatScope.All(), CancellationToken.None);
+        Result<AskOutcome> result = await sut.PrepareAsync(question, ChatScope.All(), [], CancellationToken.None);
 
         // Assert
         result.IsFailure.Should().BeTrue();
@@ -123,7 +123,7 @@ public sealed class AskQuestionPipelineTests
         AskQuestionPipeline sut = CreateSut();
 
         // Act
-        Result<AskOutcome> result = await sut.PrepareAsync(new string('x', 2001), ChatScope.All(), CancellationToken.None);
+        Result<AskOutcome> result = await sut.PrepareAsync(new string('x', 2001), ChatScope.All(), [], CancellationToken.None);
 
         // Assert
         result.Error.Should().Be(ChatErrors.InvalidQuestion);
@@ -136,9 +136,9 @@ public sealed class AskQuestionPipelineTests
         RetrieverReturns(ScopedRetrievalResult.From([Chunk(0.3)]));
 
         // Act
-        Result<AskOutcome> loose = await CreateSut(threshold: 0.6).PrepareAsync("q", ChatScope.All(), CancellationToken.None);
+        Result<AskOutcome> loose = await CreateSut(threshold: 0.6).PrepareAsync("q", ChatScope.All(), [], CancellationToken.None);
         RetrieverReturns(ScopedRetrievalResult.From([Chunk(0.3)]));
-        Result<AskOutcome> strict = await CreateSut(threshold: 0.8).PrepareAsync("q", ChatScope.All(), CancellationToken.None);
+        Result<AskOutcome> strict = await CreateSut(threshold: 0.8).PrepareAsync("q", ChatScope.All(), [], CancellationToken.None);
 
         // Assert
         loose.Value.IsAnswerable.Should().BeTrue();

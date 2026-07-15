@@ -20,11 +20,11 @@ public sealed class ChatStreamHardeningTests(ChatAskApiFactory factory) : IClass
         await ChatRetrievalSeed.SeedReadyDocumentAsync(factory, session, "doc.pdf", null, [(Grounded, null)]);
     }
 
-    private static HttpRequestMessage AskRequest()
+    private static HttpRequestMessage AskRequest(Guid conversationId)
     {
         return new HttpRequestMessage(HttpMethod.Post, "/api/chat/ask")
         {
-            Content = JsonContent.Create(new { question = Grounded, scope = new { type = "all" } }),
+            Content = JsonContent.Create(new { conversationId, question = Grounded, scope = new { type = "all" } }),
         };
     }
 
@@ -37,11 +37,12 @@ public sealed class ChatStreamHardeningTests(ChatAskApiFactory factory) : IClass
         var session = Guid.NewGuid();
         await SeedAnswerableAsync(session);
         HttpClient client = SseEvents.CreateClient(factory, session);
+        Guid conversation = await SseEvents.CreateConversationAsync(client);
 
         // Act — start reading, then disconnect the client mid-stream (dispose the response/stream + cancel).
         // The in-memory TestServer surfaces the abandoned response as HttpContext.RequestAborted.
         var abort = new CancellationTokenSource();
-        HttpResponseMessage response = await client.SendAsync(AskRequest(), HttpCompletionOption.ResponseHeadersRead, abort.Token);
+        HttpResponseMessage response = await client.SendAsync(AskRequest(conversation), HttpCompletionOption.ResponseHeadersRead, abort.Token);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         Stream stream = await response.Content.ReadAsStreamAsync(abort.Token);
         _ = await stream.ReadAsync(new byte[128], abort.Token); // let `sources` + the first `token` flow
@@ -69,9 +70,10 @@ public sealed class ChatStreamHardeningTests(ChatAskApiFactory factory) : IClass
         var session = Guid.NewGuid();
         await SeedAnswerableAsync(session);
         HttpClient client = SseEvents.CreateClient(factory, session);
+        Guid conversation = await SseEvents.CreateConversationAsync(client);
 
         // Act — read the whole stream to completion.
-        HttpResponseMessage response = await client.SendAsync(AskRequest(), CancellationToken.None);
+        HttpResponseMessage response = await client.SendAsync(AskRequest(conversation), CancellationToken.None);
         string body = await response.Content.ReadAsStringAsync(CancellationToken.None);
 
         // Assert — a keep-alive comment appeared, and the stream still completed normally.
