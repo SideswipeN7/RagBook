@@ -63,7 +63,7 @@ history; US5 = session isolation; Polish = delete + docs.
 
 - [X] T014 [US2] Application test + impl: `GetConversationQueryHandler` returns the conversation + ordered messages (DTOs: role/content/state/sources), session-filtered (not found → `chat.conversation_not_found`) — tests + slice `Features/Conversations/GetConversation/*` + `GET /api/conversations/{id}`.
 - [X] T015 [US2] Integration test: `GET /{id}` returns persisted messages ordered by time with preserved `state` (no_answer/interrupted) and `sources_json`; a conversation whose scope targets a **deleted folder** still loads — in `tests/RagBook.Api.IntegrationTests/Chat/ConversationPersistenceTests.cs`.
-- [ ] T016 [US2] Frontend: `conversations.store.ts` `get(id)` (HttpClient) + rework `chat.store.ts` to load `Message[]` → `ChatExchange[]` (map role/content/`state`→status, `sources`→`Source[]`); reuse `chat-answer` to render; `ask` carries the active `conversationId` — in `src/Web/src/app/core/{conversations.store,chat.store}.ts` + specs asserting loaded states + clickable citations render **from the stored `sources` (not live chunks)** — so they survive document deletion (SC-004, A2).
+- [X] T016 [US2] Frontend: `conversations.store.ts` `get(id)` (HttpClient) + rework `chat.store.ts` to load `Message[]` → `ChatExchange[]` (map role/content/`state`→status, `sources`→`Source[]`); reuse `chat-answer` to render; `ask` carries the active `conversationId` — in `src/Web/src/app/core/{conversations.store,chat.store}.ts` + specs asserting loaded states + clickable citations render **from the stored `sources` (not live chunks)** — so they survive document deletion (SC-004, A2).
 
 **Checkpoint**: AC-3 — history reloads with states + citations (from snippets, survives deletion).
 
@@ -76,7 +76,7 @@ history; US5 = session isolation; Polish = delete + docs.
 **Independent test**: "Nowa rozmowa" creates an empty conversation (scope Wszystkie); the previous stays listed; selecting one loads it.
 
 - [X] T017 [US3] Application test + impl: `ListConversationsQueryHandler` returns the session's conversations, most-recent first (summaries) — tests + slice `Features/Conversations/ListConversations/*` + `GET /api/conversations`.
-- [ ] T018 [US3] Frontend: `conversations.store` `list()` + `create()` + `activeId`; a `conversation-list` component (sidebar) with "Nowa rozmowa" (create → empty, default scope Wszystkie, activate + clear thread) and switching (loads via T016); wire into the chat page — in `src/Web/src/app/chat/conversation-list/*` + specs.
+- [X] T018 [US3] Frontend: `conversations.store` `list()` + `create()` + `activeId`; a `conversation-list` component (sidebar) with "Nowa rozmowa" (create → empty, default scope Wszystkie, activate + clear thread) and switching (loads via T016); wire into the chat page — in `src/Web/src/app/chat/conversation-list/*` + specs.
 
 **Checkpoint**: AC-2 — new conversation clears context, previous stays listed.
 
@@ -108,8 +108,8 @@ history; US5 = session isolation; Polish = delete + docs.
 
 ## Phase 8: Polish
 
-- [ ] T021 [P] `DeleteConversation`: slice (`ICommand`, hard delete — FK cascade removes messages) + `DELETE /api/conversations/{id}` + integration test (cascade removes messages; cross-session → 404) + frontend delete behind the **design-system confirm dialog** (never `window.confirm`) + spec — `Features/Conversations/DeleteConversation/*`, `ConversationEndpoints.cs`, `conversation-list` + `conversations.store`.
-- [ ] T022 [P] Docs: README **"Historia rozmowy (US-18)"** — persisted multi-turn conversations, per-question retrieval + last-`HistoryPairs` context, the retrieval trade-off (purely-referential follow-ups; future work: condensing question), `sources_json` survives document deletion, session isolation; AGENTS.md durable notes (`Conversation`/`Message` entities + isolation filter; `ChatTurnCompleted : IExternalEvent` outbox persistence; user message sync at ask start; `ChatOptions.HistoryPairs`; ask `+= conversationId`; `ChatStore` conversation-backed; no SSE contract change).
+- [X] T021 [P] `DeleteConversation`: slice (`ICommand`, hard delete — FK cascade removes messages) + `DELETE /api/conversations/{id}` + integration test (cascade removes messages; cross-session → 404) + frontend delete behind the **design-system confirm dialog** (never `window.confirm`) + spec — `Features/Conversations/DeleteConversation/*`, `ConversationEndpoints.cs`, `conversation-list` + `conversations.store`.
+- [X] T022 [P] Docs: README **"Historia rozmowy (US-18)"** — persisted multi-turn conversations, per-question retrieval + last-`HistoryPairs` context, the retrieval trade-off (purely-referential follow-ups; future work: condensing question), `sources_json` survives document deletion, session isolation; AGENTS.md durable notes (`Conversation`/`Message` entities + isolation filter; `ChatTurnCompleted : IExternalEvent` outbox persistence; user message sync at ask start; `ChatOptions.HistoryPairs`; ask `+= conversationId`; `ChatStore` conversation-backed; no SSE contract change).
 - [ ] T023 Full green run — `npm test` in `src/Web` and `dotnet test` (Domain + Application + Testcontainers Integration; Docker up; migration applied) — then the critical-analysis pass on the diff before opening the PR (repo memory: critical-analysis-before-pr). Then PR to master.
 
 ---

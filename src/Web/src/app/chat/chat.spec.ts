@@ -3,14 +3,28 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ApiKeyStore } from '../core/api-key.store';
 import { ChatExchange, ChatStore } from '../core/chat.store';
+import { ConversationSummary, ConversationsStore } from '../core/conversations.store';
 import { Chat } from './chat';
 
 class FakeChatStore {
   readonly thread = signal<readonly ChatExchange[]>([]);
   readonly isStreaming = signal(false);
+  readonly activeConversationId = signal<string | null>('c1');
   readonly ask = jasmine.createSpy('ask');
   readonly stop = jasmine.createSpy('stop');
   readonly retry = jasmine.createSpy('retry');
+  readonly load = jasmine.createSpy('load').and.resolveTo(undefined);
+  readonly reset = jasmine.createSpy('reset');
+}
+
+class FakeConversationsStore {
+  readonly conversations = signal<readonly ConversationSummary[]>([]);
+  readonly activeId = signal<string | null>('c1');
+  readonly list = jasmine.createSpy('list').and.resolveTo([]);
+  readonly create = jasmine.createSpy('create').and.resolveTo({ id: 'c1', title: '', scopeType: 'all', scopeTargetId: null, createdAt: '' });
+  readonly setActive = jasmine.createSpy('setActive');
+  readonly remove = jasmine.createSpy('remove').and.resolveTo(undefined);
+  readonly patchTitle = jasmine.createSpy('patchTitle');
 }
 
 function exchange(overrides: Partial<ChatExchange>): ChatExchange {
@@ -30,12 +44,19 @@ function exchange(overrides: Partial<ChatExchange>): ChatExchange {
 describe('Chat', () => {
   let fixture: ComponentFixture<Chat>;
   let store: FakeChatStore;
+  let conversations: FakeConversationsStore;
   let apiKey: ApiKeyStore;
 
   beforeEach(() => {
     store = new FakeChatStore();
+    conversations = new FakeConversationsStore();
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideHttpClient(), { provide: ChatStore, useValue: store }],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClient(),
+        { provide: ChatStore, useValue: store },
+        { provide: ConversationsStore, useValue: conversations },
+      ],
     });
     apiKey = TestBed.inject(ApiKeyStore);
     apiKey.status.set('active'); // unlocked by default

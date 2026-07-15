@@ -351,6 +351,29 @@ one. **Two lines of defence**, and a distinct message state so a refusal never l
   the eval raises its own threshold to 0.9 to reliably exercise the below-threshold path; **production stays 0.75**,
   where a real embedding separates off-topic far below the bar.
 
+## Historia rozmowy — wieloturowość + persystencja (US-18)
+
+Conversations are **persisted and multi-turn**, per session. A follow-up ("rozwiń punkt drugi") remembers the
+prior turns, and past conversations survive a reload with their message states + clickable citations intact.
+
+- **Persisted, session-owned.** New `Conversation` + `Message` tables (both `ISessionOwned` → the global query
+  filter; a cross-session id resolves to 404). A message stores its **state** (answered / no-answer / interrupted)
+  and its **sources as `jsonb`** (the US-16 `SourceDto[]` shape), so a citation stays verifiable even after its
+  document is deleted.
+- **Explicit conversations.** "Nowa rozmowa" creates one up-front (default scope "Wszystkie"); every ask carries
+  its `conversationId`, so the SSE stream contract is unchanged. Scope is changeable per ask; the conversation
+  records its current scope. The title is the first question truncated to 60 chars — no LLM titling.
+- **Multi-turn prompt (bounded).** Retrieval runs **fresh for the current question** (no query rewriting); the
+  last `Chat:HistoryPairs` (default 6) user→assistant pairs are prepended to the prompt as conversational context
+  alongside the freshly retrieved passages. Older turns stay in the UI only.
+- **Durable persistence, off the stream.** The user message is written when the ask starts; the assistant message
+  is persisted via a `ChatTurnCompleted` integration event through the **durable outbox** — the handler
+  initializes the session from the event (it runs outside the request) and writes the state + sources. The
+  just-finished turn is eventually consistent (persisted shortly after the stream ends).
+- **Retrieval trade-off (documented).** Because retrieval uses only the current question, a purely referential
+  follow-up (e.g. a bare "rozwiń") may retrieve weakly. A **condensing/standalone-question rewrite** is the named
+  future-work improvement; it is out of scope for the MVP.
+
 ### Known limitations
 
 - The BYOK key store is **process-local** (`IMemoryCache`). On a multi-instance deployment a request could

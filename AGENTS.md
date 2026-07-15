@@ -246,4 +246,22 @@ by Aspire); running the API standalone requires that connection string in config
   (prompt-refusal); the answer paragraph is gated off for `no_answer` (its accumulated text is the sentinel). Eval:
   `NoBasisEvalTests` (≥10 pairs) subclasses `ChatAskApiFactory` with `SimilarityThresholdOverride => 0.9` because
   the **stand-in embedding is non-semantic** (every unrelated text ≈ cosine 0.75) — production threshold stays 0.75.
-  No message persistence (US-18); no real provider in tests.
+  No real provider in tests.
+- **Conversation history (US-18, `Modules/Chat` + `chat/conversation-list`)**: persisted multi-turn chat.
+  `Conversation` + `Message` entities (`ISessionOwned`+`IAuditable` → global filter, cross-session 404); `messages`
+  has `sources_json jsonb` (US-16 `SourceDto[]`), `role`/`state` strings, FK cascade. Slices
+  `Features/Conversations/{Create,List,Get,Delete}` (CQRS + `Result`) → `ConversationEndpoints`
+  (`POST/GET/GET{id}/DELETE /api/conversations`); `chat.conversation_not_found`. **Ask** now carries
+  `conversationId` (guard → 404); persists the user message + first-question title (≤ `Chat:TitleMaxChars` 60) +
+  current scope; prompt gets the last `Chat:HistoryPairs` (6) pairs via `ConversationHistory.SelectRecent` +
+  `PromptBuilder.Build(question, chunks, history)` (retrieval still per-question — no rewriting). **Assistant
+  message** persisted via `ChatTurnCompleted : IExternalEvent` → durable outbox; the handler
+  `ISessionInitializer.Initialize(event.UserSessionId)` FIRST (runs outside the request session, else the
+  stamping/filter use the wrong session — the A3 gotcha), then writes state + `sources_json`. Tests: the outbox
+  handler runs **async** (`ChatAskApiFactory` sets `Wolverine:DurabilityEnabled=false`), so integration tests
+  **poll `GET /{id}`** for the assistant message. `SseEvents.AskAsync` now auto-creates a conversation (kept all
+  US-14/15/16/17 ask tests); `AskInAsync`/`CreateConversationAsync` for explicit multi-turn tests. Frontend:
+  `conversations.store` (HttpClient list/create/delete/activeId) + `chat.store` reworked to conversation-backed
+  (`load(id)` maps `GET /{id}` messages → `ChatExchange[]`, state→status, `sources`→`Source[]`; `reset(id)`; `ask`
+  carries `conversationId`; keeps `fetch` for SSE); `conversation-list` sidebar ("Nowa rozmowa" + switch + delete
+  via **inline design-system confirm**, never `window.confirm`). SSE event names/order unchanged.
