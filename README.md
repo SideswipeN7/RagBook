@@ -392,6 +392,27 @@ it, with a keyboard/menu equivalent so drag-and-drop is never the only path.
   nodes and a root drop-zone are drop targets (highlighted on hover, invalid targets inert). A per-document
   **"Przenieś do…"** menu performs the exact same `moveDocument` for non-pointer users.
 
+## Przenoszenie poddrzewa jednym UPDATE (US-11)
+
+Moving a folder carries its whole subtree — subfolders and their documents — and it stays cheap thanks to the
+materialized-path model.
+
+- **One transaction, one bulk `UPDATE`.** `PATCH /api/folders/{id}/parent` (a `Folders/Move` slice) re-parents the
+  folder and rewrites the `path` prefix of the folder **and every descendant** with a single
+  `UPDATE folders SET path = @newPrefix || substring(path from …) WHERE starts_with(path, @oldPrefix) AND
+  user_session_id = @session` — plus the moved row's `parent_id`. **Documents are untouched** (their `folder_id`
+  still points at the same folder, so the vector index is never rebuilt); they follow their folder, so a chat scope
+  over the new ancestor includes them.
+- **Cycle detection is one comparison.** A folder can't move into itself or a descendant — `moved.IsPrefixOf(target)`
+  on the materialized path catches both (`folder.circular_move`). Depth (`folder.max_depth_exceeded`) and a
+  same-named sibling in the target (`folder.duplicate_name`, no auto-merge) are validated before the write.
+- **Raw SQL is session-scoped by hand.** The EF global query filter does **not** apply to a raw bulk `UPDATE`, so
+  the bulk rewrite includes an explicit `user_session_id` predicate — a cross-session move is impossible.
+- **Optimistic + rollback (like US-10).** `TreeStore.moveFolder` changes the folder's `parentId` locally, so the
+  composed tree re-nests the whole subtree instantly; a follow-up refresh reconciles paths/depths on success, and a
+  rejected move snaps the folder back with a notice. Drag-and-drop excludes the folder's own subtree as a target
+  (`cdkDropListEnterPredicate`), and a **"Przenieś do…"** menu gives folder moves a non-pointer path too.
+
 ### Known limitations
 
 - The BYOK key store is **process-local** (`IMemoryCache`). On a multi-instance deployment a request could

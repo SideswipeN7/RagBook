@@ -2,13 +2,13 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { DocumentNode, FolderNode, TreeStore } from '../../core/tree.store';
+import { DocumentNode, FolderNode, TreeDocumentDto, TreeFolderDto, TreeStore } from '../../core/tree.store';
 import { DocumentTree } from './document-tree';
 
-const folders = [
+const folders: TreeFolderDto[] = [
   { id: 'a', parentId: null, name: 'Umowy', depth: 1 },
 ];
-const documents = [
+const documents: TreeDocumentDto[] = [
   { id: 'd1', folderId: 'a', fileName: 'in-folder.pdf', contentType: 'application/pdf', sizeBytes: 100, status: 'Ready', chunkCount: 2, uploadedAt: '2026-07-11T10:00:00Z', failureReason: null },
   { id: 'd2', folderId: null, fileName: 'root.pdf', contentType: 'application/pdf', sizeBytes: 200, status: 'Processing', chunkCount: 0, uploadedAt: '2026-07-11T09:00:00Z', failureReason: null },
 ];
@@ -48,7 +48,7 @@ describe('DocumentTree', () => {
     loadTree();
     const spy = spyOn(TestBed.inject(TreeStore), 'moveDocument');
 
-    fixture.componentInstance.onDrop({ id: 'd2' } as DocumentNode, 'a');
+    fixture.componentInstance.onDrop({ id: 'd2', kind: 'document' } as DocumentNode, 'a');
 
     expect(spy).toHaveBeenCalledWith('d2', 'a');
   });
@@ -57,9 +57,45 @@ describe('DocumentTree', () => {
     loadTree();
     const spy = spyOn(TestBed.inject(TreeStore), 'moveDocument');
 
-    fixture.componentInstance.onDrop({ id: 'd1' } as DocumentNode, null);
+    fixture.componentInstance.onDrop({ id: 'd1', kind: 'document' } as DocumentNode, null);
 
     expect(spy).toHaveBeenCalledWith('d1', null);
+  });
+
+  it('routes a dropped folder to moveFolder (US-11)', () => {
+    loadTree();
+    const store = TestBed.inject(TreeStore);
+    const folderSpy = spyOn(store, 'moveFolder');
+    const documentSpy = spyOn(store, 'moveDocument');
+
+    fixture.componentInstance.onDrop({ id: 'child', kind: 'folder' } as unknown as FolderNode, null);
+
+    expect(folderSpy).toHaveBeenCalledWith('child', null);
+    expect(documentSpy).not.toHaveBeenCalled();
+  });
+
+  it('drop predicate rejects a folder dropped into its own subtree (US-11 AC-2)', () => {
+    loadTree([{ id: 'a', parentId: null, name: 'A', depth: 1 }, { id: 'b', parentId: 'a', name: 'B', depth: 2 }] as TreeFolderDto[], [] as TreeDocumentDto[]);
+
+    // Dragging folder A over target B (a descendant of A) must be rejected.
+    const predicate = fixture.componentInstance.dropPredicate('b');
+    expect(predicate({ data: { id: 'a', kind: 'folder' } as unknown as FolderNode } as never)).toBeFalse();
+    // Dragging A over an unrelated target is allowed.
+    expect(fixture.componentInstance.dropPredicate('x')({ data: { id: 'a', kind: 'folder' } as unknown as FolderNode } as never)).toBeTrue();
+  });
+
+  it('"Przenieś do…" folder menu moves via moveFolder and never offers self or a descendant (US-11 FR-011)', () => {
+    loadTree([{ id: 'a', parentId: null, name: 'A', depth: 1 }, { id: 'b', parentId: 'a', name: 'B', depth: 2 }, { id: 'c', parentId: null, name: 'C', depth: 1 }] as TreeFolderDto[], [] as TreeDocumentDto[]);
+    const spy = spyOn(TestBed.inject(TreeStore), 'moveFolder');
+
+    // Targets for moving A exclude A itself and its descendant B, but include C.
+    const targets = fixture.componentInstance.folderMoveTargets('a').map((t) => t.id);
+    expect(targets).toContain('c');
+    expect(targets).not.toContain('a');
+    expect(targets).not.toContain('b');
+
+    fixture.componentInstance.chooseMoveFolder('a', 'c');
+    expect(spy).toHaveBeenCalledWith('a', 'c');
   });
 
   it('"Przenieś do…" menu moves via the same store action as a drop (US-10 AC-5)', () => {

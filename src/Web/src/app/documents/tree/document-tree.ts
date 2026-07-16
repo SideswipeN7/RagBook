@@ -97,10 +97,41 @@ export class DocumentTree {
     return node.children.length > 0;
   }
 
-  /** A document was dropped onto a folder (or the root when null) — the store moves it optimistically (US-10). */
-  onDrop(document: DocumentNode, targetFolderId: string | null): void {
+  /** A tree node was dropped onto a folder (or the root when null) — routed by kind to the right optimistic move. */
+  onDrop(node: TreeNode, targetFolderId: string | null): void {
     this.dropTarget.set(undefined);
-    this.store.moveDocument(document.id, targetFolderId);
+    if (node.kind === 'document') {
+      this.store.moveDocument(node.id, targetFolderId);
+    } else {
+      this.store.moveFolder(node.id, targetFolderId);
+    }
+  }
+
+  /** Enter-predicate for a folder drop target: reject dropping a folder into itself or its own subtree (US-11 AC-2). */
+  dropPredicate(targetFolderId: string): (drag: { data: TreeNode }) => boolean {
+    return (drag) => !(drag.data.kind === 'folder' && this.store.isDescendant(targetFolderId, drag.data.id));
+  }
+
+  // US-11 folder "Przenieś do…" menu (a11y parity with US-10).
+  readonly movingFolderId = signal<string | null>(null);
+
+  startMoveFolder(folderId: string): void {
+    this.resetInlineState();
+    this.movingFolderId.set(folderId);
+  }
+
+  chooseMoveFolder(folderId: string, targetParentId: string | null): void {
+    this.movingFolderId.set(null);
+    this.store.moveFolder(folderId, targetParentId);
+  }
+
+  cancelMoveFolder(): void {
+    this.movingFolderId.set(null);
+  }
+
+  /** Valid move targets for a folder — every folder except the folder itself and its subtree. */
+  folderMoveTargets(movedId: string): readonly { id: string; name: string }[] {
+    return this.store.folders().filter((folder) => !this.store.isDescendant(folder.id, movedId));
   }
 
   /** Opens the "Przenieś do…" picker for a document (keyboard/menu fallback — US-10 AC-5). */
@@ -191,6 +222,7 @@ export class DocumentTree {
     this.confirmingDeleteDocumentId.set(null);
     this.errorMessage.set(null);
     this.movingId.set(null);
+    this.movingFolderId.set(null);
   }
 
   private showError(error: unknown): void {

@@ -57,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<IDocumentQuotaRepository, DocumentQuotaRepository>();
 
         services.AddScoped<IFolderRepository, FolderRepository>();
+        services.AddScoped<IFolderMoveRepository, FolderMoveRepository>();
 
         // US-04 upload wiring. The real folder file-probe REPLACES US-09's NoFolderFilesProbe, so
         // deleting a folder that contains documents is now blocked (US-09 AC-5 closed end-to-end).
