@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { DocumentActionsStore } from '../../core/document-actions.store';
 import { FolderTreeStore, MAX_FOLDER_DEPTH } from '../../core/folder-tree.store';
+import { SelectionStore } from '../../core/selection.store';
 import { DocumentNode, FolderNode, TreeNode, TreeStore } from '../../core/tree.store';
 import { DocumentRow } from './document-row';
 
@@ -33,10 +34,17 @@ export class DocumentTree {
   private readonly store = inject(TreeStore);
   private readonly folders = inject(FolderTreeStore);
   private readonly documents = inject(DocumentActionsStore);
+  /** Cross-cutting multi-select + bulk actions (US-12); public so the template can read its state. */
+  readonly selection = inject(SelectionStore);
 
   readonly roots = this.store.roots;
   readonly isEmpty = this.store.isEmpty;
   readonly maxDepth = MAX_FOLDER_DEPTH;
+
+  // US-12 bulk selection UI state.
+  readonly bulkMoving = signal(false);
+  readonly confirmingBulkDelete = signal(false);
+  private lastSelectedId: string | null = null;
 
   readonly treeControl = new NestedTreeControl<TreeNode>((node) => (node.kind === 'folder' ? node.children : []));
 
@@ -215,6 +223,65 @@ export class DocumentTree {
     this.resetInlineState();
   }
 
+  // US-12 — multi-select + bulk move / delete.
+
+  /**
+   * Ticks a document from its checkbox. A Shift-click extends the selection across the contiguous range within the
+   * same folder (AC-1); a plain click toggles the single row. The last-clicked row anchors the next range.
+   */
+  select(node: DocumentNode, event: MouseEvent): void {
+    const folderDocIds = this.store.documents().filter((doc) => doc.folderId === node.folderId).map((doc) => doc.id);
+    if (event.shiftKey && this.lastSelectedId !== null && folderDocIds.includes(this.lastSelectedId)) {
+      this.selection.selectRange(folderDocIds, this.lastSelectedId, node.id);
+    } else {
+      this.selection.toggle(node.id);
+    }
+    this.lastSelectedId = node.id;
+  }
+
+  /** The file names of the currently selected documents (shown in the bulk-delete confirm). */
+  selectedNames(): readonly string[] {
+    const ids = new Set(this.selection.selectedIds());
+
+    return this.store.documents().filter((doc) => ids.has(doc.id)).map((doc) => doc.fileName);
+  }
+
+  startBulkMove(): void {
+    this.resetInlineState();
+    this.bulkMoving.set(true);
+  }
+
+  chooseBulkMove(targetFolderId: string | null): void {
+    this.bulkMoving.set(false);
+    this.selection.bulkMove(targetFolderId);
+  }
+
+  cancelBulkMove(): void {
+    this.bulkMoving.set(false);
+  }
+
+  askBulkDelete(): void {
+    this.resetInlineState();
+    this.confirmingBulkDelete.set(true);
+  }
+
+  confirmBulkDelete(): void {
+    this.confirmingBulkDelete.set(false);
+    this.selection.bulkDelete();
+  }
+
+  cancelBulkDelete(): void {
+    this.confirmingBulkDelete.set(false);
+  }
+
+  cancelSelection(): void {
+    this.selection.clear();
+  }
+
+  clearBulkErrorNotice(): void {
+    this.selection.clearBulkError();
+  }
+
   private resetInlineState(): void {
     this.creatingUnder.set(undefined);
     this.renamingId.set(null);
@@ -223,6 +290,8 @@ export class DocumentTree {
     this.errorMessage.set(null);
     this.movingId.set(null);
     this.movingFolderId.set(null);
+    this.bulkMoving.set(false);
+    this.confirmingBulkDelete.set(false);
   }
 
   private showError(error: unknown): void {

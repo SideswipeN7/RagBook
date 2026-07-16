@@ -13,6 +13,38 @@
       <button type="button" class="tree__btn" (click)="startCreate(null)">Nowy folder</button>
     </div>
 
+    <!-- US-12 bulk action bar: shows while any document is selected. -->
+    @if (selection.hasSelection()) {
+      <div class="tree__bulkbar" role="toolbar" aria-label="Operacje zbiorcze">
+        <span class="tree__bulkbar-count">{{ selection.count() }} zaznaczonych</span>
+        <button type="button" class="tree__btn" (click)="startBulkMove()">Przenieś do…</button>
+        <button type="button" class="tree__btn" (click)="askBulkDelete()">Usuń</button>
+        <button type="button" class="tree__btn tree__btn--ghost" (click)="cancelSelection()">Anuluj</button>
+      </div>
+
+      @if (bulkMoving()) {
+        <div class="tree__move" role="group" aria-label="Przenieś zaznaczone do…">
+          <button type="button" class="tree__btn" (click)="chooseBulkMove(null)">Root</button>
+          @for (folder of folderList(); track folder.id) {
+            <button type="button" class="tree__btn" (click)="chooseBulkMove(folder.id)">{{ folder.name }}</button>
+          }
+          <button type="button" class="tree__btn tree__btn--ghost" (click)="cancelBulkMove()">Anuluj</button>
+        </div>
+      }
+
+      @if (confirmingBulkDelete()) {
+        <div class="tree__confirm" role="group" aria-label="Potwierdź usunięcie zaznaczonych">
+          <span>Usunąć {{ selection.count() }} dokumentów: {{ selectedNames().join(', ') }}?</span>
+          <button type="button" class="tree__btn" (click)="confirmBulkDelete()">Tak, usuń</button>
+          <button type="button" class="tree__btn tree__btn--ghost" (click)="cancelBulkDelete()">Nie</button>
+        </div>
+      }
+    }
+
+    @if (selection.bulkError(); as message) {
+      <p class="tree__error" role="alert">{{ message }}<button type="button" class="tree__btn tree__btn--ghost" (click)="clearBulkErrorNotice()">OK</button></p>
+    }
+
     @if (creatingUnder() === null) {
       <div class="tree__inline">
         <input #rootName class="tree__input" placeholder="Nazwa folderu" (keyup.enter)="submitCreate(rootName.value)" />
@@ -33,7 +65,14 @@
     <cdk-tree [dataSource]="roots()" [treeControl]="treeControl">
       <!-- Document leaf -->
       <cdk-tree-node *cdkTreeNodeDef="let node" class="tree__node tree__node--leaf">
-        <div class="tree__row" cdkDrag [cdkDragData]="node">
+        <div class="tree__row" cdkDrag [cdkDragData]="node" [class.tree__row--failed]="selection.hasFailed(node.id)">
+          <input
+            type="checkbox"
+            class="tree__select"
+            [checked]="selection.has(node.id)"
+            (click)="select(node, $event)"
+            [attr.aria-label]="'Zaznacz ' + node.fileName"
+          />
           <app-document-row [node]="node" />
           <button type="button" class="tree__btn tree__btn--ghost" (click)="startMove(node.id)">Przenieś do…</button>
           <button type="button" class="tree__btn tree__btn--ghost" (click)="askDeleteDocument(node.id)">Usuń</button>

@@ -38,4 +38,19 @@ public static class DocumentErrors
     /// </summary>
     public static readonly Error ReadOnly =
         Error.Conflict("document.read_only", "This document is read-only and cannot be moved.");
+
+    /// <summary>
+    /// Top-level code for an all-or-nothing bulk failure (US-12). Not mapped by <c>ErrorStatusMapper</c> — the
+    /// endpoint builds the <c>422</c> ProblemDetails directly (with a <c>failures[]</c> extension), because a
+    /// single <see cref="Error"/> cannot carry the per-id list. Exposed as a bare code, not an <see cref="Error"/>.
+    /// </summary>
+    public const string BulkValidationFailedCode = "document.bulk_validation_failed";
+
+    /// <summary>A bulk request with an empty id list (US-12 FR-006) — a plain 400, distinct from a per-id failure.</summary>
+    public static readonly Error BulkEmpty =
+        Error.Validation("document.bulk_empty", "The bulk operation has no documents.");
+
+    /// <summary>A bulk id list exceeding the configured cap (US-12 FR-006) — a plain 400 with a distinct code.</summary>
+    public static readonly Error BulkTooLarge =
+        Error.Validation("document.bulk_too_large", "The bulk operation has too many documents.");
 }
