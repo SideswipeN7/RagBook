@@ -276,3 +276,15 @@ by Aspire); running the API standalone requires that connection string in config
   document rows `cdkDrag`, folder rows + a root zone `cdkDropList` in a `cdkDropListGroup`, `(cdkDropListDropped)`
   → `onDrop(doc, folderId)`; a "Przenieś do…" menu (`chooseMove`) calls the same `moveDocument` (accessibility
   parity). Read-only guard tested at the Application tier (a persistable demo doc arrives with US-03).
+- **Move folder w/ subtree (US-11, `Folders/MoveFolder` + `documents/tree`)**: `PATCH /api/folders/{id}/parent`
+  (`{parentId: guid|null}`) → `MoveFolderCommand` → handler validates ownership (`folder.not_found`), **cycle** via
+  `moved.Path.IsPrefixOf(target.Path)` (catches self + descendant → `folder.circular_move`, new, 409), depth
+  (`targetDepth + subtreeHeight + 1 > FolderOptions.MaxDepth` → `max_depth_exceeded`), same-name sibling
+  (`SiblingExistsAsync` → `duplicate_name`), no-ops the same parent. `IFolderMoveRepository.MoveAsync` = **one
+  transaction, two raw `UPDATE`s**: bulk path-prefix rewrite (`UPDATE folders SET path=@newPrefix||substring(path
+  from len(@oldPrefix)+1) WHERE starts_with(path,@oldPrefix) AND user_session_id=@session`) + `parent_id`. **Raw SQL
+  MUST filter `user_session_id`** (global filter doesn't apply). Documents untouched (folder is an attribute) → chat
+  scope follows. Frontend: `TreeStore.moveFolder` optimistic (change `parentId` → `buildForest` re-nests subtree) +
+  rollback + refresh-on-success; `isDescendant(target,moved)` (parentId chain) powers the `cdkDropListEnterPredicate`
+  (rejects self+subtree) AND the folder "Przenieś do…" menu's target filter; `onDrop` routes by `node.kind` →
+  `moveFolder`/`moveDocument`.

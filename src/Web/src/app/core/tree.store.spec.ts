@@ -46,6 +46,56 @@ describe('TreeStore', () => {
     return store.documents().find((document) => document.id === id)?.folderId;
   }
 
+  function parentOf(id: string): string | null | undefined {
+    return store.folders().find((folder) => folder.id === id)?.parentId;
+  }
+
+  it('optimistically re-parents a folder, PATCHes, and refreshes on success (US-11)', () => {
+    store.refresh();
+    controller.expectOne('/api/tree').flush({ folders, documents });
+
+    store.moveFolder('b', null); // b is a child of a → move to root
+
+    expect(parentOf('b')).toBeNull(); // optimistic re-nest
+    const request = controller.expectOne('/api/folders/b/parent');
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.body).toEqual({ parentId: null });
+    request.flush(null); // success → refresh to reconcile paths/depths
+    controller.expectOne('/api/tree').flush({ folders, documents });
+  });
+
+  it('issues no request when a folder is dropped onto its current parent (US-11)', () => {
+    store.refresh();
+    controller.expectOne('/api/tree').flush({ folders, documents });
+
+    store.moveFolder('b', 'a'); // already a child of a
+
+    expect(parentOf('b')).toBe('a');
+    // afterEach controller.verify() asserts no PATCH was issued.
+  });
+
+  it('rolls back a folder move and sets a move error on failure (US-11 AC-5)', () => {
+    store.refresh();
+    controller.expectOne('/api/tree').flush({ folders, documents });
+
+    store.moveFolder('b', null);
+    expect(parentOf('b')).toBeNull(); // optimistic
+
+    controller.expectOne('/api/folders/b/parent').flush({ code: 'folder.circular_move' }, { status: 409, statusText: 'Conflict' });
+
+    expect(parentOf('b')).toBe('a'); // reverted
+    expect(store.moveError()).toContain('podfolderu');
+  });
+
+  it('isDescendant walks the parentId chain (US-11)', () => {
+    store.refresh();
+    controller.expectOne('/api/tree').flush({ folders, documents });
+
+    expect(store.isDescendant('b', 'a')).toBeTrue(); // b is under a
+    expect(store.isDescendant('a', 'a')).toBeTrue(); // self
+    expect(store.isDescendant('a', 'b')).toBeFalse(); // a is not under b
+  });
+
   it('optimistically moves a document to a folder and PATCHes it (US-10)', () => {
     store.refresh();
     controller.expectOne('/api/tree').flush({ folders, documents });

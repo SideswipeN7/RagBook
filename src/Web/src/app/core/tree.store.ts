@@ -55,6 +55,9 @@ const MOVE_ERROR_MESSAGES: Record<string, string> = {
   'document.not_found': 'Plik już nie istnieje.',
   'folder.not_found': 'Folder docelowy już nie istnieje.',
   'document.read_only': 'Ten plik jest tylko do odczytu i nie można go przenieść.',
+  'folder.circular_move': 'Nie można przenieść folderu do niego samego ani do jego podfolderu.',
+  'folder.max_depth_exceeded': 'Osiągnięto maksymalną głębokość zagnieżdżenia.',
+  'folder.duplicate_name': 'Folder o tej nazwie już istnieje w miejscu docelowym.',
 };
 const GENERIC_MOVE_ERROR = 'Nie udało się przenieść pliku. Spróbuj ponownie.';
 
@@ -103,9 +106,54 @@ export class TreeStore {
     });
   }
 
+  /**
+   * Moves a folder (with its subtree) under a target folder (or the root when <c>null</c>) — **optimistically**
+   * (US-11): the moved folder's `parentId` changes, so the composed tree re-nests the whole subtree at once. A move
+   * to the current parent is a no-op. On success the tree refreshes (correcting paths/depths); on failure the
+   * folder snaps back and {@link moveError} carries the reason.
+   */
+  moveFolder(folderId: string, targetParentId: string | null): void {
+    const folder = this.folders().find((candidate) => candidate.id === folderId);
+    if (folder === undefined || folder.parentId === targetParentId) {
+      return; // unknown folder, or already there — no request
+    }
+
+    const previousParentId = folder.parentId;
+    this.setFolderParent(folderId, targetParentId); // optimistic re-nest
+    this.moveError.set(null);
+
+    this.http.patch(`/api/folders/${folderId}/parent`, { parentId: targetParentId }).subscribe({
+      next: () => this.refresh(), // reconcile paths/depths from the server
+      error: (error: HttpErrorResponse) => {
+        this.setFolderParent(folderId, previousParentId); // rollback
+        this.moveError.set(this.moveErrorMessage(error));
+      },
+    });
+  }
+
+  /** True when <paramref name="movedId"/> is <paramref name="targetId"/> itself or one of its ancestors — i.e. the target is in the moved folder's subtree (US-11 cycle guard). */
+  isDescendant(targetId: string, movedId: string): boolean {
+    const byId = new Map(this.folders().map((folder) => [folder.id, folder]));
+    let current: string | null = targetId;
+    while (current !== null) {
+      if (current === movedId) {
+        return true;
+      }
+      current = byId.get(current)?.parentId ?? null;
+    }
+
+    return false;
+  }
+
   /** Clears the move-error notice. */
   clearMoveError(): void {
     this.moveError.set(null);
+  }
+
+  private setFolderParent(folderId: string, parentId: string | null): void {
+    this.folders.update((folders) =>
+      folders.map((folder) => (folder.id === folderId ? { ...folder, parentId } : folder)),
+    );
   }
 
   private setDocumentFolder(documentId: string, folderId: string | null): void {

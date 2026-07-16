@@ -62,8 +62,11 @@
       <cdk-nested-tree-node *cdkTreeNodeDef="let node; when: isFolder" class="tree__node">
         <div
           class="tree__row"
+          cdkDrag
+          [cdkDragData]="node"
           cdkDropList
           [cdkDropListData]="node.id"
+          [cdkDropListEnterPredicate]="dropPredicate(node.id)"
           (cdkDropListDropped)="onDrop($event.item.data, node.id)"
           (cdkDropListEntered)="dropTarget.set(node.id)"
           (cdkDropListExited)="dropTarget.set(undefined)"
@@ -90,6 +93,7 @@
                 <button type="button" class="tree__btn tree__btn--ghost" (click)="startCreate(node.id)">Nowy folder</button>
               }
               <button type="button" class="tree__btn tree__btn--ghost" (click)="startRename(node.id)">Zmień nazwę</button>
+              <button type="button" class="tree__btn tree__btn--ghost" (click)="startMoveFolder(node.id)">Przenieś do…</button>
               <button type="button" class="tree__btn tree__btn--ghost" (click)="askDelete(node.id)">Usuń</button>
             </span>
           }
@@ -100,6 +104,16 @@
             <span>Usunąć folder „{{ node.name }}”?</span>
             <button type="button" class="tree__btn" (click)="confirmDelete(node.id)">Tak, usuń</button>
             <button type="button" class="tree__btn tree__btn--ghost" (click)="cancelInline()">Nie</button>
+          </div>
+        }
+
+        @if (movingFolderId() === node.id) {
+          <div class="tree__move" role="group" aria-label="Przenieś folder do…">
+            <button type="button" class="tree__btn" (click)="chooseMoveFolder(node.id, null)">Root</button>
+            @for (target of folderMoveTargets(node.id); track target.id) {
+              <button type="button" class="tree__btn" (click)="chooseMoveFolder(node.id, target.id)">{{ target.name }}</button>
+            }
+            <button type="button" class="tree__btn tree__btn--ghost" (click)="cancelMoveFolder()">Anuluj</button>
           </div>
         }
 

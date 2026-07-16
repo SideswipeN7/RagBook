@@ -32,4 +32,11 @@ public static class FolderErrors
     /// <summary>An infrastructure-level persistence conflict surfaced at the database boundary.</summary>
     public static readonly Error Conflict =
         Error.Conflict("folder.conflict", "The operation conflicted with a concurrent change. Please retry.");
+
+    /// <summary>
+    /// The move target is the folder itself or one of its descendants (US-11) — a cycle. 409, consistent with
+    /// the other <c>folder.*</c> conflict errors.
+    /// </summary>
+    public static readonly Error CircularMove =
+        Error.Conflict("folder.circular_move", "A folder cannot be moved into itself or one of its subfolders.");
 }

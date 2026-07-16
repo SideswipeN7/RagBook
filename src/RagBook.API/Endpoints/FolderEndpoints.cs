@@ -2,6 +2,7 @@ using RagBook.API.ProblemDetails;
 using RagBook.Modules.Folders.Features.CreateFolder;
 using RagBook.Modules.Folders.Features.DeleteFolder;
 using RagBook.Modules.Folders.Features.ListFolders;
+using RagBook.Modules.Folders.Features.MoveFolder;
 using RagBook.Modules.Folders.Features.RenameFolder;
 using RagBook.Shared.Results;
 using Wolverine;
@@ -55,6 +56,18 @@ public static class FolderEndpoints
             return result.IsSuccess ? Results.NoContent() : ProblemResults.Problem(result.Error);
         });
 
+        // US-11 — move a folder (with its subtree) under a parent, or to the root when parentId is null.
+        group.MapPatch("/{id:guid}/parent", async (Guid id, MoveFolderRequest request, IMessageBus bus, CancellationToken cancellationToken) =>
+        {
+            Result result = await bus.InvokeAsync<Result>(new MoveFolderCommand(id, request.ParentId), cancellationToken);
+
+            return result.IsSuccess ? Results.NoContent() : ProblemResults.Problem(result.Error);
+        });
+
         return endpoints;
     }
 }
+
+/// <summary>Body for <c>PATCH /api/folders/{id}/parent</c> (US-11). <c>null</c> moves the folder to the root.</summary>
+/// <param name="ParentId">The destination parent folder id, or <c>null</c> for the root.</param>
+public sealed record MoveFolderRequest(Guid? ParentId);
