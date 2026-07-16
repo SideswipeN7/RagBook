@@ -1,5 +1,8 @@
 using RagBook.API.ProblemDetails;
+using RagBook.Modules.Documents.Domain;
 using RagBook.Modules.Documents.Errors;
+using RagBook.Modules.Documents.Features.BulkDelete;
+using RagBook.Modules.Documents.Features.BulkMove;
 using RagBook.Modules.Documents.Features.DeleteDocument;
 using RagBook.Modules.Documents.Features.MoveDocument;
 using RagBook.Modules.Documents.Features.UploadDocument;
@@ -66,10 +69,45 @@ public static class DocumentEndpoints
             return result.IsSuccess ? Results.NoContent() : ProblemResults.Problem(result.Error);
         });
 
+        // US-12 — bulk move: all-or-nothing move of many documents to one folder (or the root).
+        endpoints.MapPost("/api/documents/bulk-move", async (BulkMoveRequest request, IMessageBus bus, CancellationToken cancellationToken) =>
+        {
+            BulkResult result = await bus.InvokeAsync<BulkResult>(
+                new BulkMoveCommand(request.Ids ?? [], request.TargetFolderId), cancellationToken);
+
+            return ToResult(result);
+        });
+
+        // US-12 — bulk delete: all-or-nothing delete of many documents (records + chunks cascade; quota −N).
+        endpoints.MapPost("/api/documents/bulk-delete", async (BulkDeleteRequest request, IMessageBus bus, CancellationToken cancellationToken) =>
+        {
+            BulkResult result = await bus.InvokeAsync<BulkResult>(
+                new BulkDeleteCommand(request.Ids ?? []), cancellationToken);
+
+            return ToResult(result);
+        });
+
         return endpoints;
     }
+
+    /// <summary>Maps a <see cref="BulkResult"/> to its single wire outcome: 204 / 400 (ProblemResults) / 422 (failures[]).</summary>
+    private static IResult ToResult(BulkResult result) => result.Outcome switch
+    {
+        BulkOutcome.Success => Results.NoContent(),
+        BulkOutcome.BadRequest => ProblemResults.Problem(result.Error!),
+        _ => BulkProblemResults.ValidationFailed(result.Failures),
+    };
 }
 
 /// <summary>Body for <c>PATCH /api/documents/{id}/folder</c> (US-10). <c>null</c> moves the document to the root.</summary>
 /// <param name="FolderId">The destination folder id, or <c>null</c> for the root.</param>
 public sealed record MoveDocumentRequest(Guid? FolderId);
+
+/// <summary>Body for <c>POST /api/documents/bulk-move</c> (US-12). <c>TargetFolderId</c> null moves to the root.</summary>
+/// <param name="Ids">The documents to move.</param>
+/// <param name="TargetFolderId">The destination folder id, or <c>null</c> for the root.</param>
+public sealed record BulkMoveRequest(IReadOnlyList<Guid>? Ids, Guid? TargetFolderId);
+
+/// <summary>Body for <c>POST /api/documents/bulk-delete</c> (US-12).</summary>
+/// <param name="Ids">The documents to delete.</param>
+public sealed record BulkDeleteRequest(IReadOnlyList<Guid>? Ids);

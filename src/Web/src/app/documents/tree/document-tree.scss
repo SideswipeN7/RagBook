@@ -16,6 +16,29 @@
     gap: var(--space-xs);
   }
 
+  // US-12 bulk action bar.
+  &__bulkbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-sm);
+  }
+
+  &__bulkbar-count {
+    font-weight: 600;
+    color: var(--color-body-strong);
+    margin-right: var(--space-xs);
+  }
+
+  &__select {
+    flex: 0 0 auto;
+    cursor: pointer;
+  }
+
   &__node {
     display: block;
   }
@@ -155,6 +178,13 @@
   outline-offset: -2px;
   border-radius: var(--radius-sm);
   background: var(--color-surface-card);
+}
+
+// US-12 — a row flagged by an all-or-nothing failure (FR-009).
+.tree__row--failed {
+  outline: 2px solid var(--color-error);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
 }
 
 .tree__root-zone {

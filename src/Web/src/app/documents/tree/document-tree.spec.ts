@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DocumentNode, FolderNode, TreeDocumentDto, TreeFolderDto, TreeStore } from '../../core/tree.store';
+import { SelectionStore } from '../../core/selection.store';
 import { DocumentTree } from './document-tree';
 
 const folders: TreeFolderDto[] = [
@@ -158,6 +159,81 @@ describe('DocumentTree', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Pusty folder');
+  });
+
+  it('shows the bulk action bar with the count while documents are selected (US-12 AC-1)', () => {
+    const el = loadTree();
+    const selection = TestBed.inject(SelectionStore);
+
+    selection.toggle('d1');
+    selection.toggle('d2');
+    fixture.detectChanges();
+
+    expect(el.querySelector('.tree__bulkbar')).toBeTruthy();
+    expect(el.querySelector('.tree__bulkbar')?.textContent).toContain('2 zaznaczonych');
+  });
+
+  it('select() toggles a single document and Shift-click extends the range within the folder (US-12 AC-1)', () => {
+    loadTree(
+      [{ id: 'a', parentId: null, name: 'A', depth: 1 }] as TreeFolderDto[],
+      [
+        { id: 'x1', folderId: 'a', fileName: 'x1.pdf', contentType: 'application/pdf', sizeBytes: 1, status: 'Ready', chunkCount: 1, uploadedAt: '2026-07-11T10:00:00Z', failureReason: null },
+        { id: 'x2', folderId: 'a', fileName: 'x2.pdf', contentType: 'application/pdf', sizeBytes: 1, status: 'Ready', chunkCount: 1, uploadedAt: '2026-07-11T09:00:00Z', failureReason: null },
+        { id: 'x3', folderId: 'a', fileName: 'x3.pdf', contentType: 'application/pdf', sizeBytes: 1, status: 'Ready', chunkCount: 1, uploadedAt: '2026-07-11T08:00:00Z', failureReason: null },
+      ] as TreeDocumentDto[],
+    );
+    const selection = TestBed.inject(SelectionStore);
+    const component = fixture.componentInstance;
+    const node = (id: string): DocumentNode => ({ id, folderId: 'a', kind: 'document' } as DocumentNode);
+
+    component.select(node('x1'), { shiftKey: false } as MouseEvent);
+    component.select(node('x3'), { shiftKey: true } as MouseEvent);
+
+    expect(selection.selectedIds().sort()).toEqual(['x1', 'x2', 'x3']);
+  });
+
+  it('bulk move picker calls SelectionStore.bulkMove with the chosen folder (US-12 AC-2)', () => {
+    loadTree();
+    const spy = spyOn(TestBed.inject(SelectionStore), 'bulkMove');
+
+    fixture.componentInstance.startBulkMove();
+    fixture.componentInstance.chooseBulkMove('a');
+
+    expect(spy).toHaveBeenCalledWith('a');
+    expect(fixture.componentInstance.bulkMoving()).toBeFalse();
+  });
+
+  it('bulk delete confirm calls SelectionStore.bulkDelete only after confirming (US-12 AC-3)', () => {
+    loadTree();
+    const selection = TestBed.inject(SelectionStore);
+    const spy = spyOn(selection, 'bulkDelete');
+    selection.toggle('d2');
+
+    fixture.componentInstance.askBulkDelete();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Usunąć 1 dokumentów');
+
+    fixture.componentInstance.cancelBulkDelete();
+    expect(spy).not.toHaveBeenCalled();
+
+    fixture.componentInstance.askBulkDelete();
+    fixture.componentInstance.confirmBulkDelete();
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('marks a row flagged by an all-or-nothing failure (US-12 AC-4 / FR-009)', () => {
+    const el = loadTree();
+    const selection = TestBed.inject(SelectionStore);
+
+    selection.toggle('d2');
+    selection.bulkDelete();
+    controller.expectOne('/api/documents/bulk-delete').flush(
+      { code: 'document.bulk_validation_failed', failures: [{ id: 'd2', code: 'document.read_only' }] },
+      { status: 422, statusText: 'Unprocessable Entity' },
+    );
+    fixture.detectChanges();
+
+    expect(el.querySelector('.tree__row--failed')).toBeTruthy();
   });
 
   it('deletes a document leaf via DELETE /api/documents after confirming (US-08)', () => {
