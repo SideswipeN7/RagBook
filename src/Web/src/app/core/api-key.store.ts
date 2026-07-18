@@ -1,18 +1,12 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { messageForCode } from './error-messages';
 
 /** Status projection returned by the settings endpoints (US-02). Never carries the full key. */
 export interface ApiKeyStatusResponse {
   readonly status: 'none' | 'active';
   readonly maskedKey: string | null;
 }
-
-/** Human-readable messages for the stable settings error codes. */
-const ERROR_MESSAGES: Record<string, string> = {
-  'settings.invalid_api_key': 'Nieprawidłowy klucz API. Sprawdź go i spróbuj ponownie.',
-  'settings.validation_unavailable': 'Nie można teraz zweryfikować klucza. Spróbuj ponownie za chwilę.',
-  'settings.too_many_attempts': 'Zbyt wiele prób. Odczekaj chwilę i spróbuj ponownie.',
-};
 
 /**
  * Shared, signal-based store of the session's BYOK key (US-02). Saving validates upstream and returns
@@ -52,7 +46,7 @@ export class ApiKeyStore {
       },
       error: (response: HttpErrorResponse) => {
         this.saving.set(false);
-        this.error.set(ERROR_MESSAGES[response.error?.code] ?? 'Nie udało się zapisać klucza.');
+        this.error.set(messageForCode(response.error?.code, 'Nie udało się zapisać klucza.'));
       },
     });
   }

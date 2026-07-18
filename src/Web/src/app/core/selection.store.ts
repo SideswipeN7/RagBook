@@ -1,15 +1,9 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { messageForCode } from './error-messages';
 import { QuotaStore } from './quota.store';
 import { TreeStore } from './tree.store';
 
-/** Stable bulk-error codes → Polish messages surfaced when a bulk action is refused (US-12). */
-const BULK_ERROR_MESSAGES: Record<string, string> = {
-  'document.bulk_empty': 'Nie zaznaczono żadnych dokumentów.',
-  'document.bulk_too_large': 'Zaznaczono zbyt wiele dokumentów naraz.',
-  'document.bulk_validation_failed':
-    'Niektórych zaznaczonych pozycji nie można przetworzyć — oznaczono je na liście. Popraw zaznaczenie i spróbuj ponownie.',
-};
 const GENERIC_BULK_ERROR = 'Nie udało się wykonać operacji zbiorczej. Spróbuj ponownie.';
 
 /** One `{ id, code }` entry from a 422 `failures[]` extension. */
@@ -139,7 +133,7 @@ export class SelectionStore {
     if (payload?.failures) {
       this.failedIds.set(new Set(payload.failures.map((failure) => failure.id)));
     }
-    this.bulkError.set((payload?.code && BULK_ERROR_MESSAGES[payload.code]) || GENERIC_BULK_ERROR);
+    this.bulkError.set(messageForCode(payload?.code, GENERIC_BULK_ERROR));
   }
 
   private clearFailedMark(id: string): void {

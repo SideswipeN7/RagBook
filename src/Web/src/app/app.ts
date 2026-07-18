@@ -8,12 +8,13 @@ import { DocumentTree } from './documents/tree/document-tree';
 import { DocumentUpload } from './documents/upload/document-upload';
 import { QuotaBar } from './documents/quota-bar/quota-bar';
 import { ApiKeySettings } from './settings/api-key-settings/api-key-settings';
+import { OfflineBanner } from './shared/offline-banner/offline-banner';
 
 /** Root shell. Standalone, OnPush, signals, new control flow. */
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [QuotaBar, DocumentUpload, DocumentTree, ApiKeySettings, Chat],
+  imports: [QuotaBar, DocumentUpload, DocumentTree, ApiKeySettings, Chat, OfflineBanner],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

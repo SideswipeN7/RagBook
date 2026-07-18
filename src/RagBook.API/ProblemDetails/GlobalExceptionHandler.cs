@@ -36,7 +36,7 @@ public sealed class GlobalExceptionHandler(
                 Extensions =
                 {
                     ["code"] = error.Code,
-                    ["traceId"] = httpContext.TraceIdentifier,
+                    ["traceId"] = CorrelationId.Current(httpContext),
                 },
             },
         });
@@ -56,7 +56,7 @@ public sealed class GlobalExceptionHandler(
                     "Unhandled exception for {Method} {Path} (traceId {TraceId})",
                     httpContext.Request.Method,
                     httpContext.Request.Path,
-                    httpContext.TraceIdentifier);
+                    CorrelationId.Current(httpContext));
 
                 return Error.Unexpected("error.unexpected", "An unexpected error occurred.");
         }

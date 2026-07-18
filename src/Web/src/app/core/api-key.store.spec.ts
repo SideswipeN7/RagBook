@@ -51,7 +51,7 @@ describe('ApiKeyStore', () => {
       .expectOne('/api/settings/api-key')
       .flush({ code: 'settings.invalid_api_key' }, { status: 400, statusText: 'Bad Request' });
 
-    expect(store.error()).toContain('Nieprawidłowy klucz');
+    expect(store.error()).toContain('Klucz API został odrzucony');
     expect(store.status()).not.toBe('active');
     expect(store.saving()).toBeFalse();
   });

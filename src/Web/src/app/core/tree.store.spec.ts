@@ -150,7 +150,7 @@ describe('TreeStore', () => {
     controller.expectOne('/api/documents/d2/folder').flush({ code: 'folder.not_found' }, { status: 404, statusText: 'Not Found' });
 
     expect(folderOf('d2')).toBeNull(); // reverted
-    expect(store.moveError()).toContain('Folder docelowy już nie istnieje');
+    expect(store.moveError()).toContain('Folder nie istnieje');
   });
 
   it('reports empty for a fresh session', () => {

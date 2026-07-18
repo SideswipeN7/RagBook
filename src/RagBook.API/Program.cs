@@ -1,5 +1,6 @@
 using RagBook;
 using RagBook.API.Endpoints;
+using RagBook.API.Middleware;
 using RagBook.API.ProblemDetails;
 using RagBook.API.Sessions;
 using RagBook.Infrastructure;
@@ -116,6 +117,9 @@ if (durabilityEnabled)
 
 app.UseExceptionHandler();
 
+// US-19 — stamp X-Trace-Id on every response so a caller can quote one id that also appears in the logs.
+app.UseMiddleware<TraceHeaderMiddleware>();
+
 // Resolve/issue the session before anything reads domain data (AC-1).
 app.UseMiddleware<SessionMiddleware>();
 
@@ -131,6 +135,13 @@ app.MapDocumentStatusEndpoints();
 app.MapChatEndpoints();
 app.MapConversationEndpoints();
 app.MapDemoEndpoints();
+
+// US-19 — a test-only endpoint that throws, to exercise the global exception handler (AC-5). Mapped only when
+// explicitly enabled (integration host), so production never exposes it.
+if (builder.Configuration.GetValue("Testing:ExposeThrowEndpoint", defaultValue: false))
+{
+    app.MapGet("/api/_test/throw", IResult () => throw new InvalidOperationException("Forced test exception (US-19 AC-5)."));
+}
 
 await app.RunAsync();
 

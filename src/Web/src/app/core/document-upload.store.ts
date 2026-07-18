@@ -1,5 +1,6 @@
 import { HttpErrorResponse, HttpClient, HttpEventType } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
+import { messageForCode } from './error-messages';
 import { QuotaStore } from './quota.store';
 import { TreeStore } from './tree.store';
 
@@ -7,28 +8,18 @@ import { TreeStore } from './tree.store';
 export const MAX_UPLOAD_MB = 10;
 export const ALLOWED_UPLOAD_EXTENSIONS = ['.pdf', '.txt', '.md', '.markdown'];
 
-/** Human-readable messages for the stable upload error codes. */
-const ERROR_MESSAGES: Record<string, string> = {
-  'document.unsupported_file_type': 'Nieobsługiwany typ pliku. Dozwolone: PDF, TXT, Markdown.',
-  'document.empty_file': 'Plik jest pusty.',
-  'quota.file_too_large': 'Plik przekracza dozwolony rozmiar.',
-  'quota.exceeded': 'Limit plików osiągnięty — usuń pliki, aby wgrać nowe.',
-  'quota.total_size_exceeded': 'Brak miejsca w limicie — usuń pliki, aby wgrać nowe.',
-  'folder.not_found': 'Wybrany folder nie istnieje.',
-};
-
 /** Pre-validates a file by extension and size; returns an error message or `null` when acceptable. */
 export function preValidate(file: File): string | null {
   const dot = file.name.lastIndexOf('.');
   const extension = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
   if (!ALLOWED_UPLOAD_EXTENSIONS.includes(extension)) {
-    return ERROR_MESSAGES['document.unsupported_file_type'];
+    return messageForCode('document.unsupported_file_type');
   }
   if (file.size === 0) {
-    return ERROR_MESSAGES['document.empty_file'];
+    return messageForCode('document.empty_file');
   }
   if (file.size > MAX_UPLOAD_MB * 1_000_000) {
-    return ERROR_MESSAGES['quota.file_too_large'];
+    return messageForCode('quota.file_too_large');
   }
 
   return null;
@@ -78,7 +69,7 @@ export class DocumentUploadStore {
       },
       error: (response: HttpErrorResponse) => {
         this.progress.set(null);
-        this.error.set(ERROR_MESSAGES[response.error?.code] ?? 'Nie udało się wgrać pliku.');
+        this.error.set(messageForCode(response.error?.code, 'Nie udało się wgrać pliku.'));
       },
     });
   }
