@@ -1,0 +1,50 @@
+# Cloud Build — builds and pushes the three RagBook images (US-20). Deployment + the migration Job are documented in
+# deploy/README.md (run them after this build). Substitutions: _REGION, _REPO, PROJECT_ID (provided by Cloud Build).
+# Run: gcloud builds submit --config deploy/cloudbuild.yaml --substitutions=_REGION=europe-central2,_REPO=ragbook
+
+substitutions:
+  _REGION: europe-central2
+  _REPO: ragbook
+
+steps:
+  - id: build-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - src/RagBook.API/Dockerfile
+      - --target
+      - api
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/api:$SHORT_SHA
+      - .
+
+  - id: build-migrate
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - src/RagBook.API/Dockerfile
+      - --target
+      - migrate
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/migrate:$SHORT_SHA
+      - .
+
+  - id: build-web
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - src/Web/Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/web:$SHORT_SHA
+      - src/Web
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/api:$SHORT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/migrate:$SHORT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/web:$SHORT_SHA
+
+options:
+  logging: CLOUD_LOGGING_ONLY

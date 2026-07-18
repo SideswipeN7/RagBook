@@ -54,6 +54,14 @@ export class Chat implements AfterViewChecked, OnInit {
   readonly demoMax = this.demoStore.max;
   readonly demoExhausted = this.demoStore.isExhausted;
 
+  // US-20 — the evaluator's one-minute path: ready demo questions shown in the empty chat, matching the seeded
+  // demo documents (a sample lease + the technical doc). Clicking one asks it in the demo scope, keyless.
+  readonly suggestedQuestions: readonly string[] = [
+    'Jaki jest okres wypowiedzenia w umowie?',
+    'Ile wynosi kaucja i kiedy jest zwracana?',
+    'Jak działa wyszukiwanie dokumentów w RagBook?',
+  ];
+
   private stick = true;
 
   async ngOnInit(): Promise<void> {
@@ -135,6 +143,13 @@ export class Chat implements AfterViewChecked, OnInit {
       }
     });
     input.value = '';
+  }
+
+  /** Asks a ready demo question in the demo scope (US-20 AC-3) — the keyless one-click evaluator path. */
+  askSuggested(question: string): void {
+    this.scope.set({ type: 'demo', label: 'Dokumenty demo' });
+    this.stick = true;
+    void this.store.ask(question, this.scope()).then(() => this.demoStore.refresh());
   }
 
   stop(): void {

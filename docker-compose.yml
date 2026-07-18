@@ -1,0 +1,64 @@
+# One-command local run for RagBook (US-20): postgres(pgvector) → migrate(one-shot) → api → web(nginx).
+#   cp .env.example .env   &&   docker compose up --build   →   http://localhost:8080
+# Migrations run as a separate step (the EF bundle), never at app startup (constitution §VIII).
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ragbookdb}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ragbookdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Applies EF Core migrations (incl. CREATE EXTENSION vector) once, then exits — before the API starts.
+  migrate:
+    build:
+      context: .
+      dockerfile: src/RagBook.API/Dockerfile
+      target: migrate
+    command: ["--connection", "${ConnectionStrings__ragbookdb:-Host=postgres;Port=5432;Database=ragbookdb;Username=postgres;Password=postgres}"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: src/RagBook.API/Dockerfile
+      target: api
+    environment:
+      ConnectionStrings__ragbookdb: ${ConnectionStrings__ragbookdb:-Host=postgres;Port=5432;Database=ragbookdb;Username=postgres;Password=postgres}
+      Anthropic__ApplicationKey: ${Anthropic__ApplicationKey:-}
+      Embedding__ApiKey: ${Embedding__ApiKey:-}
+      Session__Secure: ${Session__Secure:-false}
+      Wolverine__DurabilityEnabled: ${Wolverine__DurabilityEnabled:-true}
+      FileStorage__RootPath: /data/blobs
+      ASPNETCORE_ENVIRONMENT: Production
+    volumes:
+      - blobs:/data/blobs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # nginx front: serves the SPA and reverse-proxies /api to the API (single public origin).
+  web:
+    build:
+      context: ./src/Web
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  blobs:
