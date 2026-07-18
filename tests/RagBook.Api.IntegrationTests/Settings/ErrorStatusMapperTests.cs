@@ -35,4 +35,14 @@ public sealed class ErrorStatusMapperTests
     {
         ErrorStatusMapper.ToStatusCode(errorType).Should().Be(expectedStatus);
     }
+
+    [Fact]
+    public void Should_MapEveryErrorType_ToAValidStatus(/* US-19 AC-1 — guards a future ErrorType addition */)
+    {
+        foreach (ErrorType errorType in Enum.GetValues<ErrorType>())
+        {
+            int status = ErrorStatusMapper.ToStatusCode(errorType);
+            status.Should().BeInRange(400, 599, $"ErrorType.{errorType} must map to a client/server error status");
+        }
+    }
 }

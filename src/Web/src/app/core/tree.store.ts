@@ -1,5 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { messageForCode } from './error-messages';
 import { formatFileSize } from './file-size';
 
 /** A folder as returned by GET /api/tree. */
@@ -51,15 +52,6 @@ export type TreeNode = FolderNode | DocumentNode;
 const EXPANDED_KEY = 'ragbook.tree.expanded';
 const GENERIC_FAILURE = 'Przetwarzanie nie powiodło się.';
 
-/** Stable move-error codes → Polish messages surfaced when a move rolls back (US-10). */
-const MOVE_ERROR_MESSAGES: Record<string, string> = {
-  'document.not_found': 'Plik już nie istnieje.',
-  'folder.not_found': 'Folder docelowy już nie istnieje.',
-  'document.read_only': 'Ten plik jest tylko do odczytu i nie można go przenieść.',
-  'folder.circular_move': 'Nie można przenieść folderu do niego samego ani do jego podfolderu.',
-  'folder.max_depth_exceeded': 'Osiągnięto maksymalną głębokość zagnieżdżenia.',
-  'folder.duplicate_name': 'Folder o tej nazwie już istnieje w miejscu docelowym.',
-};
 const GENERIC_MOVE_ERROR = 'Nie udało się przenieść pliku. Spróbuj ponownie.';
 
 /**
@@ -169,7 +161,7 @@ export class TreeStore {
   private moveErrorMessage(error: HttpErrorResponse): string {
     const code = (error.error as { code?: string } | null)?.code;
 
-    return (code && MOVE_ERROR_MESSAGES[code]) || GENERIC_MOVE_ERROR;
+    return messageForCode(code, GENERIC_MOVE_ERROR);
   }
 
   /** Re-reads the whole tree from the backend. Call after any upload, delete, or folder mutation. */

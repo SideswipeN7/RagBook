@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { messageForCode, withReportId } from './error-messages';
 import { SseParser } from './sse-parser';
 
 /** The scope a question searches, mirroring US-13/14 (`all` / `folder` / `document`). */
@@ -35,17 +36,6 @@ export interface ChatExchange {
 }
 
 /** Stable error codes → Polish user messages (US-19-consistent). */
-const ERROR_MESSAGES: Record<string, string> = {
-  'settings.api_key_missing': 'Skonfiguruj klucz API, aby zadać pytanie.',
-  'settings.invalid_api_key': 'Klucz API został odrzucony — sprawdź go w ustawieniach.',
-  'chat.provider_rate_limited': 'Zbyt wiele zapytań — spróbuj ponownie za chwilę.',
-  'chat.provider_unavailable': 'Usługa AI jest chwilowo niedostępna. Spróbuj ponownie.',
-  'chat.scope_not_found': 'Wybrany zakres już nie istnieje — przełącz na „Wszystkie".',
-  'chat.invalid_question': 'Pytanie jest puste lub zbyt długie.',
-  'chat.demo_limit_reached': 'Wykorzystano limit pytań demo. Dodaj własny klucz API, aby pytać dalej.',
-  'chat.demo_rate_limited': 'Zbyt wiele pytań demo z Twojej sieci — spróbuj ponownie później.',
-  'chat.demo_unavailable': 'Tryb demo jest chwilowo niedostępny. Spróbuj ponownie później.',
-};
 const GENERIC_ERROR = 'Coś poszło nie tak podczas generowania. Spróbuj ponownie.';
 
 /** A persisted message from `GET /api/conversations/{id}` (US-18). */
@@ -129,7 +119,13 @@ export class ChatStore {
       });
 
       if (!response.ok || !response.body) {
-        this.patch(id, { status: 'error', errorMessage: this.message(await this.readCode(response)) });
+        const problem = await this.readProblem(response);
+        const message = this.message(problem.code);
+        // Surface a short report id for an unexpected error so it can be quoted to support (US-19 AC-4).
+        const withId = problem.code === 'error.unexpected'
+          ? withReportId(message, problem.traceId ?? response.headers.get('X-Trace-Id'))
+          : message;
+        this.patch(id, { status: 'error', errorMessage: withId });
 
         return;
       }
@@ -264,17 +260,17 @@ export class ChatStore {
     this.controller = null;
   }
 
-  private async readCode(response: Response): Promise<string | undefined> {
+  private async readProblem(response: Response): Promise<{ code?: string; traceId?: string }> {
     try {
-      const body = (await response.json()) as { code?: string };
+      const body = (await response.json()) as { code?: string; traceId?: string };
 
-      return body?.code;
+      return { code: body?.code, traceId: body?.traceId };
     } catch {
-      return undefined;
+      return {};
     }
   }
 
   private message(code: string | undefined): string {
-    return (code && ERROR_MESSAGES[code]) || GENERIC_ERROR;
+    return messageForCode(code, GENERIC_ERROR);
   }
 }

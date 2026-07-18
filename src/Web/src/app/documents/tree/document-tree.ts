@@ -3,18 +3,11 @@ import { CdkTreeModule, NestedTreeControl } from '@angular/cdk/tree';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { DocumentActionsStore } from '../../core/document-actions.store';
+import { messageForCode } from '../../core/error-messages';
 import { FolderTreeStore, MAX_FOLDER_DEPTH } from '../../core/folder-tree.store';
 import { SelectionStore } from '../../core/selection.store';
 import { DocumentNode, FolderNode, TreeNode, TreeStore } from '../../core/tree.store';
 import { DocumentRow } from './document-row';
-
-const FOLDER_ERROR_MESSAGES: Record<string, string> = {
-  'folder.invalid_name': 'Nieprawidłowa nazwa folderu.',
-  'folder.max_depth_exceeded': 'Osiągnięto maksymalną głębokość zagnieżdżenia.',
-  'folder.duplicate_name': 'Folder o tej nazwie już istnieje w tym miejscu.',
-  'folder.not_empty': 'Usuń lub przenieś zawartość przed usunięciem folderu.',
-  'folder.not_found': 'Folder nie istnieje.',
-};
 
 /**
  * The unified folders + documents tree (US-07), built with `@angular/cdk` `cdk-tree`. Folders nest with
@@ -298,6 +291,6 @@ export class DocumentTree {
 
   private showError(error: unknown): void {
     const code = error instanceof HttpErrorResponse ? error.error?.code : undefined;
-    this.errorMessage.set(FOLDER_ERROR_MESSAGES[code] ?? 'Wystąpił nieoczekiwany błąd.');
+    this.errorMessage.set(messageForCode(code));
   }
 }
