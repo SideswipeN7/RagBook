@@ -64,3 +64,6 @@ TestResults/
 node_modules/
 dist/
 .angular/
+
+# Local blob store (uploaded files) — never commit user data (US-20).
+.blobstore/

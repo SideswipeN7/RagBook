@@ -1,0 +1,5 @@
+# The web image build context is src/Web — keep host build artifacts out so `COPY . .` never layers a win32
+# node_modules / stale dist over the clean `npm ci` (US-20).
+node_modules/
+.angular/
+dist/

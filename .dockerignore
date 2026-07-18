@@ -1,0 +1,13 @@
+# Keep Docker build contexts small and free of build output / local artifacts.
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.angular/
+.git/
+.github/
+.blobstore/
+**/*.user
+specs/
+docs/
+*.md

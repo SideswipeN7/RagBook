@@ -1,13 +1,122 @@
 # RagBook
 
-A case-study RAG assistant over your own documents: upload PDF/TXT/MD → index with pgvector →
-ask natural-language questions → stream answers with clickable citations. A **.NET 10** modular
-monolith (vertical slices, `Result<T>`, Wolverine) paired with an **Angular** SPA, orchestrated by
-**.NET Aspire**, backed by **PostgreSQL + pgvector**, deployed to **GCP Cloud Run**.
+**A RAG assistant over your own documents.** Upload PDF / TXT / Markdown → the text is chunked and embedded into
+**pgvector** → ask natural-language questions → get **streamed answers with clickable citations**, grounded strictly
+in your documents (it refuses when the answer isn't there). A **.NET 10** modular monolith (vertical slices,
+`Result<T>` → RFC 9457 ProblemDetails, Wolverine) paired with an **Angular 20** SPA, backed by **PostgreSQL +
+pgvector**, packaged for **one-command local run** and **GCP Cloud Run**.
 
-This repository currently implements **US-01 — user session (data isolation)** and **US-05 — file
-quota** plus the greenfield solution foundation. See `docs/features/` for the full story map and
-`.specify/` for the spec-driven artifacts (constitution, spec, plan, tasks).
+Built end-to-end across **20 user stories** via a spec-driven workflow (constitution → spec → plan → tasks →
+implement, all under `.specify/` and `docs/features/`), each shipped behind four green test tiers (Domain,
+Application, Testcontainers integration, Angular) + CI.
+
+## Try it in a minute
+
+Open the app, pick the **"Dokumenty demo"** scope (no API key needed), click one of the suggested questions → a
+streamed answer with clickable citations appears — on built-in, read-only demo documents paid for by a server key.
+
+> _Demo GIF: upload → question → citation — capture and embed here (`docs/media/demo.gif`)._
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Browser["Angular SPA (signals, OnPush)"] -->|"/api (same origin)"| Nginx["nginx front"]
+  Nginx -->|reverse proxy| API[".NET 10 API — vertical slices, Result&lt;T&gt;"]
+  subgraph Data
+    PG[("PostgreSQL + pgvector")]
+    Blob[["File storage (LocalFileStorage / volume)"]]
+  end
+  API -->|"EF Core (session query filter)"| PG
+  API -->|blobs| Blob
+  API -->|"BYOK or app key"| Anthropic["Anthropic (generation, SSE)"]
+  API -->|embeddings| Voyage["Voyage (or deterministic stand-in)"]
+  subgraph Ingest["Upload → index (Wolverine background)"]
+    direction LR
+    Extract["extract text"] --> Chunk["chunk"] --> Embed["embed"] --> Store["store vectors"]
+  end
+  API -.-> Ingest
+```
+
+**Isolation**: every visitor gets an anonymous `UserSessionId` (cookie); a global EF query filter scopes every read
+to the session — cross-session data is invisible (404), enforced architecturally, not by hand.
+
+## Design decisions (each with the rejected alternative)
+
+- **Folder hierarchy → materialized path**, not a recursive CTE. Each folder stores `Path = /{id}/{id}/…/`; a subtree
+  query is a single `LIKE '/{id}/%'` (indexable), and a move is one prefix-rewrite in a transaction. _Rejected:_ a
+  recursive CTE over `parent_id` — simpler to write but an unbounded recursive read per tree/query and awkward to
+  index; the fixed max depth (3) makes the path cheap.
+- **Retrieval → pre-filter in the same pgvector query**, not separate per-scope indexes. One SQL statement filters by
+  `user_session_id` + ready status + scope (`all` / folder path prefix / document / demo-origin) **then** runs the
+  cosine search, so isolation and scope are enforced inside the vector search. _Rejected:_ maintaining a separate
+  vector index per folder/scope — more indexes to keep in sync, and it can't express "the session's documents".
+- **BYOK without secret persistence.** A user's Anthropic key lives only in a per-session in-memory cache and is sent
+  as a request header; it is **never** written to the database or logs. _Rejected:_ storing the key (even encrypted)
+  at rest — a standing liability for a throwaway session key; the trade-off is that keys don't survive a restart
+  (acceptable, documented).
+- **Grounding = similarity threshold + a refusal sentinel.** Only passages above a cosine threshold are sent; the
+  prompt instructs the model to answer **only** from them and to emit an exact refusal phrase when unsupported,
+  which the server maps to a neutral "not found in your documents" state. _Rejected:_ trusting the model to
+  self-limit without a threshold or sentinel — hallucination risk and no deterministic "no answer" signal.
+- **One embedding model for the whole index.** Every chunk and every query uses the same model/dimension
+  (`voyage-3.5`, 1024) — vectors are only comparable within one model. _Rejected:_ mixing models / re-embedding
+  per query — incomparable vectors and index churn.
+- **Bulk operations are all-or-nothing.** A bulk move/delete validates **every** id first, then applies in one
+  transaction; any invalid item refuses the whole operation with a per-id `failures[]` (422) and changes nothing.
+  _Rejected:_ per-item best-effort with partial success — a half-applied bulk delete is worse than none.
+
+## RAG pipeline, step by step
+
+1. **Upload** (PDF/TXT/MD) → validated (type from content, size, quota) → stored as a blob + a `documents` row.
+2. **Extract** text (background, Wolverine) → **chunk** (structural) → **embed** each chunk (Voyage, or a
+   deterministic stand-in when no key) → **store** vectors in pgvector (HNSW cosine index); the document goes `Ready`.
+3. **Ask**: the question is validated, the **scope** resolved, and the question embedded.
+4. **Retrieve**: one pre-filtered pgvector cosine search (session + ready + scope) returns the top-K passages.
+5. **Threshold**: passages below the similarity cutoff are dropped; if none survive → a deterministic "no grounds"
+   answer (the model is not called).
+6. **Ground + generate**: the surviving passages + the grounding prompt stream to Anthropic; tokens stream to the
+   browser over SSE with numbered **citations** that resolve to the source passages.
+7. **Refuse when unsupported**: a refusal sentinel maps to a neutral no-answer state; conversation history persists.
+
+## Error handling
+
+Every failure is a `Result<T>` → RFC 9457 ProblemDetails with a stable `module.snake_case` `code` + an `X-Trace-Id`
+correlation id (also on the logs); unhandled exceptions become a sanitized 500 with no stack trace. The frontend maps
+every code through one dictionary. Full catalog: **[docs/features/README.md → Katalog kodów błędów](docs/features/README.md)**.
+
+## Run locally (one command)
+
+```sh
+cp .env.example .env          # optionally add Anthropic__ApplicationKey + Embedding__ApiKey
+docker compose up --build     # postgres(pgvector) → migrate → api → web(nginx)
+# open http://localhost:8080
+```
+
+`migrate` applies EF migrations (incl. `CREATE EXTENSION vector`) as a **separate step** — never at app startup
+(constitution §VIII); the API then seeds the demo documents idempotently. With no keys the app is fully browsable and
+demo mode shows a readable "temporarily unavailable" message.
+
+## Deploy to the cloud
+
+GCP Cloud Run + Cloud SQL (pgvector) + Secret Manager — see **[deploy/README.md](deploy/README.md)** and
+`deploy/cloudbuild.yaml`. Secrets come **only** from Secret Manager; SSE works within the request timeout via the
+app's keep-alive; `min-instances=0` means a few-second cold start on first hit.
+
+## Known limitations / future work
+
+- **File storage**: `LocalFileStorage` on a volume; a **GCS `IFileStorage` adapter** is the productionization step for
+  durable, multi-instance uploads (not yet built).
+- **Cold start**: scale-to-zero trades a few seconds on the first request for cost.
+- **BYOK keys are per-instance** (in-memory) — not shared across multiple Cloud Run instances.
+- **No monitoring/alerting or IaC (Terraform)** yet; a custom domain is optional.
+
+## Development (Aspire)
+
+```sh
+cd src/Web && npm install && cd -             # install SPA deps once
+dotnet run --project src/RagBook.AppHost      # Aspire: PostgreSQL + API + Angular dev server (Docker required)
+```
 
 ## Solution layout
 
@@ -19,27 +128,24 @@ quota** plus the greenfield solution foundation. See `docs/features/` for the fu
 | `src/RagBook.Infrastructure.Migrations` | EF Core migrations only. |
 | `src/RagBook.AppHost` | .NET Aspire orchestration (PostgreSQL + API + Angular dev server). |
 | `src/RagBook.ServiceDefaults` | Shared telemetry/health/resilience (`AddServiceDefaults()`). |
-| `src/Web` | Angular SPA shell (standalone, signals, OnPush). |
+| `src/Web` | Angular SPA (standalone, signals, OnPush). |
 | `tests/*` | Domain / Application / Api.IntegrationTests (Testcontainers). |
 
 ## Build & test
 
 ```sh
 dotnet build RagBook.slnx
-dotnet test  tests/RagBook.Domain.Tests        # pure domain, no Docker
-dotnet test  tests/RagBook.Application.Tests    # handlers/validators, no Docker
-dotnet test  tests/RagBook.Api.IntegrationTests # Testcontainers PostgreSQL — START DOCKER FIRST
+dotnet test  tests/RagBook.Domain.Tests         # pure domain, no Docker
+dotnet test  tests/RagBook.Application.Tests     # handlers/validators, no Docker
+dotnet test  tests/RagBook.Api.IntegrationTests  # Testcontainers PostgreSQL — START DOCKER FIRST
+cd src/Web && npm test                           # Angular (Karma + ChromeHeadless)
 ```
 
-## Run locally
+---
 
-```sh
-cd src/Web && npm install && cd -             # install SPA deps once (prerequisite for the web resource)
-dotnet run --project src/RagBook.AppHost      # Aspire starts PostgreSQL + the API + the Angular dev server (Docker required)
-```
+# Feature deep-dives
 
-Migrations are created in `src/RagBook.Infrastructure.Migrations` and applied out-of-band (a bundle
-or init step) — **never at application startup**.
+The sections below document each capability in depth (the story map is in `docs/features/`).
 
 ## Izolacja danych (data isolation)
 

@@ -109,6 +109,25 @@ describe('Chat', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('textarea')).toBeNull();
   });
 
+  it('shows suggested demo questions in the empty chat and asks one in the demo scope (US-20 AC-3)', () => {
+    // Empty thread by default → the suggestion chips render.
+    const chips = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.chat__suggestion'));
+    expect(chips.length).toBeGreaterThanOrEqual(2);
+
+    (chips[0] as HTMLButtonElement).click();
+
+    const [question, scope] = store.ask.calls.mostRecent().args;
+    expect(question).toBe(chips[0].textContent?.trim());
+    expect(scope).toEqual(jasmine.objectContaining({ type: 'demo' }));
+  });
+
+  it('hides the suggestions once the thread has messages', () => {
+    store.thread.set([exchange({})]);
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.chat__suggestion')).toBeNull();
+  });
+
   it('shows the neutral no-answer view when the state is no_answer (US-17)', () => {
     store.thread.set([exchange({ status: 'no_answer', groundsFound: false, answer: '' })]);
     fixture.detectChanges();

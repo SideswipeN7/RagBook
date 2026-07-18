@@ -29,14 +29,14 @@ Asystent RAG do własnych dokumentów: upload PDF/TXT/MD → indeksowanie (pgvec
 | US-19 | Obsługa błędów i stany brzegowe | Wykończenie | P1 | przekrojowo |
 | US-20 | Deployment i pakiet case study | Wykończenie | P1 | wszystkie |
 
-## Sugerowana kolejność implementacji (kamienie milowe)
+## Kamienie milowe — **wszystkie 20/20 ukończone ✅**
 
-1. **M1 — Pion danych:** US-01 → US-05 → US-09 → US-04 → US-06 → US-07 → US-08. Efekt: upload → indeksacja → drzewo → delete działa end-to-end.
-2. **M2 — Rdzeń RAG:** US-02 → US-13 → US-14 → US-15 → US-16 → US-17. Efekt: pełny czat z cytatami i groundingiem.
-3. **M3 — UX folderów:** US-10 → US-11 → (US-12). Efekt: drag&drop i operacje zbiorcze.
-4. **M4 — Wykończenie:** US-03 → US-18 → US-19 → US-20. Efekt: demo publiczne + case study.
+1. **M1 — Pion danych (7/7):** US-01 → US-05 → US-09 → US-04 → US-06 → US-07 → US-08. Efekt: upload → indeksacja → drzewo → delete end-to-end.
+2. **M2 — Rdzeń RAG (6/6):** US-02 → US-13 → US-14 → US-15 → US-16 → US-17. Efekt: pełny czat z cytatami i groundingiem.
+3. **M3 — UX folderów (3/3):** US-10 → US-11 → US-12. Efekt: drag&drop i operacje zbiorcze.
+4. **M4 — Wykończenie (4/4):** US-03 → US-18 → US-19 → US-20. Efekt: demo publiczne, obsługa błędów i pakiet case study (Docker Compose + Cloud Run).
 
-Kandydaci do cięcia przy braku czasu: US-12, US-18 (reszta to rdzeń).
+Cały roadmap zrealizowany przez przepływ spec-kit; każda historia dostarczona za zielonymi 4 tierami testów + CI.
 
 ## Jak używać ze spec-kit
 

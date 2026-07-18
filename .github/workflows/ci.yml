@@ -70,3 +70,19 @@ jobs:
         run: npm test
         env:
           CHROME_BIN: /usr/bin/google-chrome
+
+  # Verifies the deployment images build (US-20) — the API (api + migrate targets) and the nginx web front. No push.
+  docker:
+    name: Docker — build API + web images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API image (api target)
+        run: docker build -f src/RagBook.API/Dockerfile --target api -t ragbook-api:ci .
+
+      - name: Build migration image (migrate target)
+        run: docker build -f src/RagBook.API/Dockerfile --target migrate -t ragbook-migrate:ci .
+
+      - name: Build web (nginx) image
+        run: docker build -f src/Web/Dockerfile -t ragbook-web:ci src/Web

@@ -114,6 +114,33 @@
   &__demo-nudge {
     color: var(--color-body-strong);
   }
+
+  // US-20 — empty-state suggested demo questions (the evaluator's one-minute path).
+  &__suggestions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-xs);
+    padding: var(--space-md) 0;
+  }
+
+  &__suggestions-lead {
+    margin: 0 0 var(--space-xs);
+    font-size: 0.875rem;
+    color: var(--color-body-muted);
+  }
+
+  &__suggestion {
+    max-width: 100%;
+    text-align: left;
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-card);
+    color: var(--color-body-strong);
+    cursor: pointer;
+    font-size: 0.875rem;
+  }
 }
 
 .turn {

@@ -16,6 +16,15 @@
     </header>
 
   <div #threadEl class="chat__thread" (scroll)="onScroll()">
+    @if (thread().length === 0) {
+      <div class="chat__suggestions" role="group" aria-label="Przykładowe pytania demo">
+        <p class="chat__suggestions-lead">Wypróbuj tryb demo — zadaj jedno z gotowych pytań:</p>
+        @for (question of suggestedQuestions; track question) {
+          <button type="button" class="chat__suggestion" (click)="askSuggested(question)">{{ question }}</button>
+        }
+      </div>
+    }
+
     @for (exchange of thread(); track exchange.id) {
       <article class="turn">
         <p class="turn__question">{{ exchange.question }}</p>
