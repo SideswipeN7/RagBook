@@ -7,5 +7,9 @@ namespace RagBook.Modules.Tree.Features.GetTree;
 /// each pre-ordered (folders A→Z, documents newest-first). The client composes the nested tree.
 /// </summary>
 /// <param name="Folders">Folders ordered alphabetically (case-insensitive).</param>
-/// <param name="Documents">Documents ordered by upload date descending.</param>
-public sealed record TreeResponse(IReadOnlyList<TreeFolder> Folders, IReadOnlyList<TreeDocument> Documents);
+/// <param name="Documents">The session's own documents ordered by upload date descending.</param>
+/// <param name="Demo">The global read-only demo documents (US-03), ordered newest-first.</param>
+public sealed record TreeResponse(
+    IReadOnlyList<TreeFolder> Folders,
+    IReadOnlyList<TreeDocument> Documents,
+    IReadOnlyList<TreeDocument> Demo);

@@ -2,6 +2,9 @@
   <span class="scope__label">Zakres:</span>
   <select class="scope__select" aria-label="Zakres pytania" (change)="select($any($event.target).value)">
     <option value="all">Wszystkie dokumenty</option>
+    @if (hasDemo()) {
+      <option value="demo">Dokumenty demo</option>
+    }
     @if (folders().length) {
       <optgroup label="Foldery">
         @for (folder of folders(); track folder.id) {

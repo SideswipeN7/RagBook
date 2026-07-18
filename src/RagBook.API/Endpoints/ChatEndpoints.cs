@@ -6,6 +6,8 @@ using RagBook.Modules.Chat;
 using RagBook.Modules.Chat.Domain;
 using RagBook.Modules.Chat.Errors;
 using RagBook.Modules.Chat.Features.AskQuestion;
+using RagBook.Modules.Demo.Domain;
+using RagBook.Modules.Demo.Errors;
 using RagBook.Modules.Settings.Domain;
 using RagBook.Modules.Settings.Errors;
 using RagBook.Shared.Results;
@@ -35,6 +37,8 @@ public static class ChatEndpoints
             IAskQuestionPipeline pipeline,
             IAnswerGenerator generator,
             IConversationRepository conversations,
+            IDemoIpThrottle demoIpThrottle,
+            IDemoQuestionCounter demoCounter,
             IMessageBus bus,
             ISessionContext sessionContext,
             IOptions<RagOptions> ragOptions,
@@ -48,8 +52,40 @@ public static class ChatEndpoints
                 return;
             }
 
-            // Pre-generation key guard → 401 before any provider call (US-02).
-            if (clientFactory.CreateForSession().IsFailure)
+            // Pre-generation guards. Demo (US-03) is keyless — it uses the server application key and is gated by a
+            // per-IP hourly limit (429 + Retry-After) then a per-session lifetime limit; the BYOK key guard is
+            // skipped for it. Every other scope keeps the US-02 session-key guard (401 before any provider call).
+            if (scope.Type == ChatScopeType.Demo)
+            {
+                string clientIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                (bool ipAllowed, int retryAfterSeconds) = demoIpThrottle.TryRegister(clientIp);
+                if (!ipAllowed)
+                {
+                    httpContext.Response.Headers.RetryAfter =
+                        retryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    await WriteProblemAsync(httpContext, DemoErrors.IpRateLimited);
+
+                    return;
+                }
+
+                if (clientFactory.CreateForDemo().IsFailure)
+                {
+                    await WriteProblemAsync(httpContext, DemoErrors.Unavailable);
+
+                    return;
+                }
+
+                // Refuse early when the session's demo allowance is already spent (no credit consumed here); the
+                // credit itself is consumed only once the question is valid (below), so a malformed request or an
+                // unknown conversation does not waste a demo question.
+                if (demoCounter.Remaining() <= 0)
+                {
+                    await WriteProblemAsync(httpContext, DemoErrors.LimitReached);
+
+                    return;
+                }
+            }
+            else if (clientFactory.CreateForSession().IsFailure)
             {
                 await WriteProblemAsync(httpContext, SettingsErrors.ApiKeyMissing);
 
@@ -73,6 +109,14 @@ public static class ChatEndpoints
             if (prepared.IsFailure)
             {
                 await WriteProblemAsync(httpContext, prepared.Error);
+
+                return;
+            }
+
+            // The demo question is valid — consume one from the session's lifetime allowance now (US-03 AC-2).
+            if (scope.Type == ChatScopeType.Demo && !demoCounter.TryConsume())
+            {
+                await WriteProblemAsync(httpContext, DemoErrors.LimitReached);
 
                 return;
             }
@@ -285,6 +329,10 @@ public static class ChatEndpoints
                 return true;
             case "document" when dto.TargetId is Guid documentId:
                 scope = ChatScope.Document(documentId);
+
+                return true;
+            case "demo":
+                scope = ChatScope.Demo();
 
                 return true;
             default:

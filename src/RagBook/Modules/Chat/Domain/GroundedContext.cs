@@ -9,7 +9,9 @@ namespace RagBook.Modules.Chat.Domain;
 /// <param name="Sources">The numbered passages, most-relevant first.</param>
 /// <param name="SystemPrompt">The grounding instructions (answer only from passages, cite [n], refuse-if-unsupported, question's language).</param>
 /// <param name="UserPrompt">The numbered passages followed by the question.</param>
+/// <param name="IsDemo">True for a demo-scoped answer (US-03): the generator uses the server application key, not the session's BYOK key.</param>
 public sealed record GroundedContext(
     IReadOnlyList<GroundingPassage> Sources,
     string SystemPrompt,
-    string UserPrompt);
+    string UserPrompt,
+    bool IsDemo = false);

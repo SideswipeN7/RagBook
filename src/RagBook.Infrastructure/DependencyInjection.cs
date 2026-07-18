@@ -90,6 +90,12 @@ public static class DependencyInjection
             })
             .AddStandardResilienceHandler();
 
+        // US-03 demo mode — seeder + per-session counter + per-IP throttle (all IMemoryCache-backed).
+        services.AddScoped<RagBook.Modules.Documents.Processing.ProcessDocumentHandler>();
+        services.AddScoped<RagBook.Modules.Demo.Domain.IDemoDocumentSeeder, SharedContext.Demo.DemoDocumentSeeder>();
+        services.AddScoped<RagBook.Modules.Demo.Domain.IDemoQuestionCounter, SharedContext.Demo.MemoryCacheDemoQuestionCounter>();
+        services.AddScoped<RagBook.Modules.Demo.Domain.IDemoIpThrottle, SharedContext.Demo.MemoryCacheDemoIpThrottle>();
+
         // US-06 background processing — chunk store, session-agnostic reader, extractors, status notifier.
         services.AddScoped<IChunkRepository, ChunkRepository>();
         services.AddScoped<IDocumentProcessingReader, DocumentProcessingReader>();

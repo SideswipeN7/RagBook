@@ -20,4 +20,11 @@ public sealed class AnthropicOptions
 
     /// <summary>Maximum output tokens per generated answer (US-14).</summary>
     public int MaxOutputTokens { get; set; } = 1024;
+
+    /// <summary>
+    /// Server-held application key that pays for <b>demo</b> answers (US-03). Sourced from environment / secret
+    /// store, never committed and never sent to the client. Null/blank when demo generation is not configured
+    /// (dev), in which case a demo ask surfaces <c>chat.demo_unavailable</c> rather than crashing.
+    /// </summary>
+    public string? ApplicationKey { get; set; }
 }

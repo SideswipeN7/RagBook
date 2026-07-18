@@ -31,16 +31,19 @@ public sealed class GetTreeQueryHandlerTests
         var older = new TreeDocument(Guid.NewGuid(), null, "a.pdf", "application/pdf", 10, "Processing", 0,
             new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero), null);
         var documents = new List<TreeDocument> { newer, older };
-        _treeReader.GetAsync(Arg.Any<CancellationToken>()).Returns(new TreeData(folders, documents));
+        var demo = new TreeDocument(Guid.NewGuid(), null, "demo.pdf", "application/pdf", 30, "Ready", 5,
+            new DateTimeOffset(2026, 7, 9, 12, 0, 0, TimeSpan.Zero), null);
+        _treeReader.GetAsync(Arg.Any<CancellationToken>()).Returns(new TreeData(folders, documents, [demo]));
         var sut = CreateSut();
 
         // Act
         TreeResponse response = await sut.Handle(new GetTreeQuery(), CancellationToken.None);
 
-        // Assert — exact contents and order preserved.
+        // Assert — exact contents and order preserved; demo documents passed through separately (US-03).
         response.Folders.Select(f => f.Name).Should().ContainInOrder("Ananas", "banan");
         response.Documents.Should().ContainInOrder(newer, older);
         response.Documents[0].Status.Should().Be("Ready");
+        response.Demo.Should().ContainSingle().Which.Should().Be(demo);
     }
 
     [Fact]
@@ -48,7 +51,7 @@ public sealed class GetTreeQueryHandlerTests
     {
         // Arrange
         _treeReader.GetAsync(Arg.Any<CancellationToken>())
-            .Returns(new TreeData([], []));
+            .Returns(new TreeData([], [], []));
         var sut = CreateSut();
 
         // Act
@@ -57,5 +60,6 @@ public sealed class GetTreeQueryHandlerTests
         // Assert
         response.Folders.Should().BeEmpty();
         response.Documents.Should().BeEmpty();
+        response.Demo.Should().BeEmpty();
     }
 }

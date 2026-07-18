@@ -37,4 +37,10 @@ public sealed record ChatScope
     {
         return new ChatScope(ChatScopeType.Document, documentId);
     }
+
+    /// <summary>Scope over the globally-visible demo documents (US-03) — no target; retrieved by origin, not session.</summary>
+    public static ChatScope Demo()
+    {
+        return new ChatScope(ChatScopeType.Demo, targetId: null);
+    }
 }

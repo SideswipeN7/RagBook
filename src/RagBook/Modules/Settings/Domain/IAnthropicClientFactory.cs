@@ -14,4 +14,10 @@ public interface IAnthropicClientFactory
     /// when the session has no active key.
     /// </summary>
     Result<AnthropicClientHandle> CreateForSession();
+
+    /// <summary>
+    /// Returns a client handle over the server-held <b>application</b> key for demo answers (US-03), or a failure
+    /// (<c>chat.demo_unavailable</c>) when no application key is configured. Never uses the session's BYOK key.
+    /// </summary>
+    Result<AnthropicClientHandle> CreateForDemo();
 }

@@ -21,11 +21,19 @@ export class ScopeSelector {
 
   readonly folders = this.tree.folders;
   readonly readyDocuments = computed(() => this.tree.documents().filter((document) => document.status === 'Ready'));
+  /** Whether the demo scope is offered (there are seeded demo documents) — US-03. */
+  readonly hasDemo = computed(() => this.tree.demoDocuments().length > 0);
 
-  /** Maps the encoded `<select>` value (`all` / `folder:{id}` / `document:{id}`) to a scope and emits it. */
+  /** Maps the encoded `<select>` value (`all` / `demo` / `folder:{id}` / `document:{id}`) to a scope and emits it. */
   select(value: string): void {
     if (value === 'all') {
       this.scopeChange.emit({ type: 'all', label: 'Wszystkie dokumenty' });
+
+      return;
+    }
+
+    if (value === 'demo') {
+      this.scopeChange.emit({ type: 'demo', label: 'Dokumenty demo' });
 
       return;
     }

@@ -5,7 +5,7 @@ import { SseParser } from './sse-parser';
 
 /** The scope a question searches, mirroring US-13/14 (`all` / `folder` / `document`). */
 export interface ChatScopeSelection {
-  readonly type: 'all' | 'folder' | 'document';
+  readonly type: 'all' | 'folder' | 'document' | 'demo';
   readonly targetId?: string;
   readonly label: string;
 }
@@ -42,6 +42,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   'chat.provider_unavailable': 'Usługa AI jest chwilowo niedostępna. Spróbuj ponownie.',
   'chat.scope_not_found': 'Wybrany zakres już nie istnieje — przełącz na „Wszystkie".',
   'chat.invalid_question': 'Pytanie jest puste lub zbyt długie.',
+  'chat.demo_limit_reached': 'Wykorzystano limit pytań demo. Dodaj własny klucz API, aby pytać dalej.',
+  'chat.demo_rate_limited': 'Zbyt wiele pytań demo z Twojej sieci — spróbuj ponownie później.',
+  'chat.demo_unavailable': 'Tryb demo jest chwilowo niedostępny. Spróbuj ponownie później.',
 };
 const GENERIC_ERROR = 'Coś poszło nie tak podczas generowania. Spróbuj ponownie.';
 
@@ -234,7 +237,14 @@ export class ChatStore {
   }
 
   private scopeSelection(type: ChatScopeSelection['type'], targetId: string | null): ChatScopeSelection {
-    const label = type === 'all' ? 'Wszystkie dokumenty' : type === 'folder' ? 'Wybrany folder' : 'Wybrany dokument';
+    const label =
+      type === 'all'
+        ? 'Wszystkie dokumenty'
+        : type === 'folder'
+          ? 'Wybrany folder'
+          : type === 'demo'
+            ? 'Dokumenty demo'
+            : 'Wybrany dokument';
 
     return { type, targetId: targetId ?? undefined, label };
   }

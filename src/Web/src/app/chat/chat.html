@@ -36,7 +36,17 @@
     }
   </div>
 
-  @if (chatLocked()) {
+  @if (isDemoScope()) {
+    <div class="chat__demo-banner" role="status">
+      <span class="chat__demo-badge">Tryb demo</span>
+      <span class="chat__demo-count">{{ demoRemaining() }} / {{ demoMax() }} pytań demo</span>
+      @if (demoExhausted()) {
+        <span class="chat__demo-nudge">Limit wyczerpany — dodaj własny klucz API w ustawieniach, aby pytać dalej.</span>
+      }
+    </div>
+  }
+
+  @if (locked()) {
     <p class="chat__locked" role="status">
       Skonfiguruj klucz API w ustawieniach powyżej, aby zadać pytanie.
     </p>

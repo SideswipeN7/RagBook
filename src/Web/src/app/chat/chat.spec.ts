@@ -4,17 +4,28 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ApiKeyStore } from '../core/api-key.store';
 import { ChatExchange, ChatStore } from '../core/chat.store';
 import { ConversationSummary, ConversationsStore } from '../core/conversations.store';
+import { DemoStore } from '../core/demo.store';
 import { Chat } from './chat';
 
 class FakeChatStore {
   readonly thread = signal<readonly ChatExchange[]>([]);
   readonly isStreaming = signal(false);
   readonly activeConversationId = signal<string | null>('c1');
-  readonly ask = jasmine.createSpy('ask');
+  readonly ask = jasmine.createSpy('ask').and.resolveTo(undefined);
   readonly stop = jasmine.createSpy('stop');
   readonly retry = jasmine.createSpy('retry');
   readonly load = jasmine.createSpy('load').and.resolveTo(undefined);
   readonly reset = jasmine.createSpy('reset');
+}
+
+class FakeDemoStore {
+  readonly asked = signal(0);
+  readonly max = signal(10);
+  readonly remaining = signal(10);
+  readonly available = signal(true);
+  readonly isExhausted = signal(false);
+  readonly refresh = jasmine.createSpy('refresh');
+  readonly noteAsked = jasmine.createSpy('noteAsked');
 }
 
 class FakeConversationsStore {
@@ -56,6 +67,7 @@ describe('Chat', () => {
         provideHttpClient(),
         { provide: ChatStore, useValue: store },
         { provide: ConversationsStore, useValue: conversations },
+        { provide: DemoStore, useValue: new FakeDemoStore() },
       ],
     });
     apiKey = TestBed.inject(ApiKeyStore);

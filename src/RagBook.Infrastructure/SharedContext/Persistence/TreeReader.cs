@@ -29,23 +29,36 @@ public sealed class TreeReader(RagBookDbContext dbContext) : ITreeReader
             .OrderByDescending(document => document.UploadedAt)
             .ToListAsync(cancellationToken);
 
+        // US-03 — the read-only demo documents are global (owned by the sentinel demo session), so they are read
+        // by origin with the per-session filter bypassed; visible in every session's Demo section.
+        List<Document> demoDocuments = await dbContext.Documents
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(document => document.Origin == DocumentOrigin.Demo)
+            .OrderByDescending(document => document.UploadedAt)
+            .ToListAsync(cancellationToken);
+
         List<TreeFolder> treeFolders = folders
             .Select(folder => new TreeFolder(folder.Id, folder.ParentId, folder.Name, FolderPath.Parse(folder.Path).Depth))
             .ToList();
 
-        List<TreeDocument> treeDocuments = documents
-            .Select(document => new TreeDocument(
-                document.Id,
-                document.FolderId,
-                document.FileName ?? string.Empty,
-                document.ContentType ?? string.Empty,
-                document.SizeBytes,
-                document.Status.ToString(),
-                document.ChunkCount,
-                document.UploadedAt ?? document.CreatedAt,
-                document.FailureReason))
-            .ToList();
+        List<TreeDocument> treeDocuments = documents.Select(ToTreeDocument).ToList();
+        List<TreeDocument> treeDemoDocuments = demoDocuments.Select(ToTreeDocument).ToList();
 
-        return new TreeData(treeFolders, treeDocuments);
+        return new TreeData(treeFolders, treeDocuments, treeDemoDocuments);
+    }
+
+    private static TreeDocument ToTreeDocument(Document document)
+    {
+        return new TreeDocument(
+            document.Id,
+            document.FolderId,
+            document.FileName ?? string.Empty,
+            document.ContentType ?? string.Empty,
+            document.SizeBytes,
+            document.Status.ToString(),
+            document.ChunkCount,
+            document.UploadedAt ?? document.CreatedAt,
+            document.FailureReason);
     }
 }

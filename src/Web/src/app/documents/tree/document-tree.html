@@ -5,9 +5,6 @@
       <p class="tree__empty-cta">Wgraj pierwszy dokument powyżej, aby zacząć — albo wypróbuj tryb demo.</p>
     </div>
 
-    <section class="tree__demo" aria-label="Tryb demo">
-      <p class="tree__demo-note">Tryb demo (wkrótce) — przykładowe dokumenty tylko do odczytu.</p>
-    </section>
   } @else {
     <div class="tree__toolbar">
       <button type="button" class="tree__btn" (click)="startCreate(null)">Nowy folder</button>
@@ -186,5 +183,19 @@
       Upuść tutaj, aby przenieść do głównego katalogu
     </div>
     </div>
+  }
+
+  <!-- US-03 — read-only demo documents, visible in every session (no move/delete/select controls). -->
+  @if (demoDocuments().length > 0) {
+    <section class="tree__demo" aria-label="Dokumenty demo">
+      <p class="tree__demo-heading">
+        Dokumenty demo <span class="tree__demo-badge">tylko do odczytu</span>
+      </p>
+      <ul class="tree__demo-list">
+        @for (doc of demoDocuments(); track doc.id) {
+          <li class="tree__demo-item" [title]="doc.fileName">{{ doc.fileName }}</li>
+        }
+      </ul>
+    </section>
   }
 </section>

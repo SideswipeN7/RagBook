@@ -102,6 +102,11 @@ public sealed class AnthropicAnswerGeneratorTests
         {
             return new AnthropicClientHandle("sk-ant-api03-test");
         }
+
+        public Result<AnthropicClientHandle> CreateForDemo()
+        {
+            return new AnthropicClientHandle("sk-ant-api03-appkey");
+        }
     }
 
     private sealed class StubHttpMessageHandler : HttpMessageHandler

@@ -41,4 +41,21 @@ describe('ScopeSelector', () => {
 
     expect(emitted).toEqual({ type: 'folder', targetId: 'f1', label: 'Umowy' });
   });
+
+  it('offers a demo option only when demo documents exist, and emits the demo scope (US-03)', () => {
+    // No demo documents yet → no demo option.
+    let values = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('option')).map((o) => (o as HTMLOptionElement).value);
+    expect(values).not.toContain('demo');
+
+    tree.demoDocuments.set([doc('demo1', 'demo.pdf', 'Ready')]);
+    fixture.detectChanges();
+
+    values = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('option')).map((o) => (o as HTMLOptionElement).value);
+    expect(values).toContain('demo');
+
+    let emitted: ChatScopeSelection | undefined;
+    fixture.componentInstance.scopeChange.subscribe((scope) => (emitted = scope));
+    fixture.componentInstance.select('demo');
+    expect(emitted).toEqual({ type: 'demo', label: 'Dokumenty demo' });
+  });
 });

@@ -40,6 +40,8 @@ export class DocumentTree {
   readonly roots = this.store.roots;
   readonly isEmpty = this.store.isEmpty;
   readonly maxDepth = MAX_FOLDER_DEPTH;
+  /** The global read-only demo documents (US-03) — a separate section, no mutating controls. */
+  readonly demoDocuments = this.store.demoDocuments;
 
   // US-12 bulk selection UI state.
   readonly bulkMoving = signal(false);
