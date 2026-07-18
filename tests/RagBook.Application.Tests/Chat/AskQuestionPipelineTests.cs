@@ -55,6 +55,36 @@ public sealed class AskQuestionPipelineTests
     }
 
     [Fact]
+    public async Task Should_MarkContextIsDemo_When_ScopeIsDemo()
+    {
+        // Arrange — an answerable demo-scoped question (US-03): the grounded context must carry IsDemo so the
+        // generator uses the application key, not the session's BYOK key.
+        RetrieverReturns(ScopedRetrievalResult.From([Chunk(0.1)]));
+        AskQuestionPipeline sut = CreateSut();
+
+        // Act
+        Result<AskOutcome> result = await sut.PrepareAsync("What is in the demo?", ChatScope.Demo(), [], CancellationToken.None);
+
+        // Assert
+        result.Value.IsAnswerable.Should().BeTrue();
+        result.Value.Context!.IsDemo.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Should_NotMarkContextIsDemo_When_ScopeIsNotDemo()
+    {
+        // Arrange
+        RetrieverReturns(ScopedRetrievalResult.From([Chunk(0.1)]));
+        AskQuestionPipeline sut = CreateSut();
+
+        // Act
+        Result<AskOutcome> result = await sut.PrepareAsync("What is the term?", ChatScope.All(), [], CancellationToken.None);
+
+        // Assert
+        result.Value.Context!.IsDemo.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Should_ReturnInsufficient_When_AllBelowThreshold()
     {
         // Arrange — distance 0.5 ⇒ similarity 0.5 < 0.75.

@@ -28,6 +28,25 @@ describe('TreeStore', () => {
 
   afterEach(() => controller.verify());
 
+  it('exposes the global demo documents from GET /api/tree (US-03)', () => {
+    const demo: TreeDocumentDto[] = [
+      { id: 'demo1', folderId: null, fileName: 'demo.pdf', contentType: 'application/pdf', sizeBytes: 10, status: 'Ready', chunkCount: 2, uploadedAt: '2026-07-09T10:00:00Z', failureReason: null },
+    ];
+    store.refresh();
+    controller.expectOne('/api/tree').flush({ folders, documents, demo });
+
+    expect(store.demoDocuments().map((d) => d.fileName)).toEqual(['demo.pdf']);
+    // Demo docs are a separate list — they are not mixed into the session's own tree.
+    expect(store.documents().map((d) => d.id)).not.toContain('demo1');
+  });
+
+  it('defaults demo documents to empty when the response omits them', () => {
+    store.refresh();
+    controller.expectOne('/api/tree').flush({ folders, documents });
+
+    expect(store.demoDocuments()).toEqual([]);
+  });
+
   it('fetches GET /api/tree and composes the nested forest with root documents at the top level', () => {
     store.refresh();
     controller.expectOne('/api/tree').flush({ folders, documents });

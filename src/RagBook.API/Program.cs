@@ -9,6 +9,8 @@ using RagBook.API.Messaging;
 using RagBook.Infrastructure.SharedContext.Providers.Anthropic;
 using RagBook.Infrastructure.SharedContext.Processing;
 using RagBook.Infrastructure.SharedContext.Storage;
+using RagBook.Modules.Demo;
+using RagBook.Modules.Demo.Domain;
 using RagBook.Modules.Documents;
 using RagBook.Modules.Documents.Domain;
 using RagBook.Modules.Chat;
@@ -30,6 +32,7 @@ builder.Services.Configure<SessionCookieOptions>(builder.Configuration.GetSectio
 builder.Services.Configure<QuotaOptions>(builder.Configuration.GetSection(QuotaOptions.SectionName));
 builder.Services.Configure<FolderOptions>(builder.Configuration.GetSection(FolderOptions.SectionName));
 builder.Services.Configure<BulkOptions>(builder.Configuration.GetSection(BulkOptions.SectionName));
+builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.SectionName));
 builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection(FileStorageOptions.SectionName));
 builder.Services.Configure<ApiKeyStoreOptions>(builder.Configuration.GetSection(ApiKeyStoreOptions.SectionName));
 builder.Services.Configure<AnthropicOptions>(builder.Configuration.GetSection(AnthropicOptions.SectionName));
@@ -91,6 +94,26 @@ if (durabilityEnabled)
 
 var app = builder.Build();
 
+// US-03 — seed the read-only demo documents once, on a real run (idempotent by fixed id). Gated by the same
+// durability flag as the Wolverine resource setup so integration tests (which migrate + seed explicitly in fixture
+// setup, never at app startup — constitution §VIII) skip it. Fail-soft: migrations are applied out-of-band before
+// a real boot, but if the schema is not yet present the app must still start (demo then reads as unavailable)
+// rather than crash — the seed is idempotent and re-runs on the next start.
+if (durabilityEnabled)
+{
+    try
+    {
+        using IServiceScope demoScope = app.Services.CreateScope();
+        await demoScope.ServiceProvider.GetRequiredService<IDemoDocumentSeeder>().SeedAsync(CancellationToken.None);
+    }
+    catch (Exception exception)
+    {
+        app.Services.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Demo.Seed")
+            .LogWarning(exception, "Demo document seeding was skipped at startup; it will retry on the next start.");
+    }
+}
+
 app.UseExceptionHandler();
 
 // Resolve/issue the session before anything reads domain data (AC-1).
@@ -107,6 +130,7 @@ app.MapSettingsEndpoints();
 app.MapDocumentStatusEndpoints();
 app.MapChatEndpoints();
 app.MapConversationEndpoints();
+app.MapDemoEndpoints();
 
 await app.RunAsync();
 

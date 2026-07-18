@@ -26,6 +26,7 @@ export interface TreeDocumentDto {
 interface TreeResponseDto {
   readonly folders: TreeFolderDto[];
   readonly documents: TreeDocumentDto[];
+  readonly demo?: TreeDocumentDto[];
 }
 
 /** A composed folder node (children = subfolders then documents). */
@@ -73,6 +74,9 @@ export class TreeStore {
 
   readonly folders = signal<readonly TreeFolderDto[]>([]);
   readonly documents = signal<readonly TreeDocumentDto[]>([]);
+
+  /** The globally-visible, read-only demo documents (US-03); shown in a separate Demo section. */
+  readonly demoDocuments = signal<readonly TreeDocumentDto[]>([]);
 
   /** The composed forest: root folders (A→Z) then root documents (newest-first). */
   readonly roots = computed(() => buildForest(this.folders(), this.documents()));
@@ -173,6 +177,7 @@ export class TreeStore {
     this.http.get<TreeResponseDto>('/api/tree').subscribe((response) => {
       this.folders.set(response.folders);
       this.documents.set(response.documents);
+      this.demoDocuments.set(response.demo ?? []);
     });
   }
 

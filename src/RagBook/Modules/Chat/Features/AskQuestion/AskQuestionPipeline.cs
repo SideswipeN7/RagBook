@@ -50,7 +50,8 @@ public sealed class AskQuestionPipeline(
             return AskOutcome.InsufficientGrounding;
         }
 
-        GroundedContext context = promptBuilder.Build(trimmed, grounded, history);
+        GroundedContext context = promptBuilder.Build(trimmed, grounded, history)
+            with { IsDemo = scope.Type == ChatScopeType.Demo }; // demo answers generate on the application key (US-03)
 
         // Defensive: if the context budget trimmed away every passage, there is nothing to ground on.
         if (context.Sources.Count == 0)

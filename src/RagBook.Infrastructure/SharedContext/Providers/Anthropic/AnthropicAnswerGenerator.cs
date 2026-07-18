@@ -35,10 +35,14 @@ public sealed class AnthropicAnswerGenerator(
         GroundedContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        Result<AnthropicClientHandle> handle = clientFactory.CreateForSession();
+        // Demo answers generate on the server application key; user answers on the session's BYOK key (US-03).
+        Result<AnthropicClientHandle> handle = context.IsDemo
+            ? clientFactory.CreateForDemo()
+            : clientFactory.CreateForSession();
         if (handle.IsFailure)
         {
-            throw new AnswerGenerationException(AnswerGenerationFailure.InvalidKey);
+            throw new AnswerGenerationException(
+                context.IsDemo ? AnswerGenerationFailure.Unavailable : AnswerGenerationFailure.InvalidKey);
         }
 
         using HttpResponseMessage response = await SendAsync(context, handle.Value.ApiKey, cancellationToken);

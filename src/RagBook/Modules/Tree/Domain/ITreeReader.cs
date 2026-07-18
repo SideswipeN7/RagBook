@@ -1,9 +1,13 @@
 namespace RagBook.Modules.Tree.Domain;
 
-/// <summary>The session's folders and documents for one tree read (US-07), each pre-ordered by the reader.</summary>
+/// <summary>The session's folders and documents for one tree read (US-07), plus the global read-only demo documents (US-03).</summary>
 /// <param name="Folders">Folders, ordered alphabetically (case-insensitive).</param>
-/// <param name="Documents">Documents, ordered by upload date descending.</param>
-public sealed record TreeData(IReadOnlyList<TreeFolder> Folders, IReadOnlyList<TreeDocument> Documents);
+/// <param name="Documents">The session's own documents, ordered by upload date descending (excludes demo).</param>
+/// <param name="DemoDocuments">The globally-visible, read-only demo documents (US-03), ordered newest-first.</param>
+public sealed record TreeData(
+    IReadOnlyList<TreeFolder> Folders,
+    IReadOnlyList<TreeDocument> Documents,
+    IReadOnlyList<TreeDocument> DemoDocuments);
 
 /// <summary>
 /// The single read seam for the tree (US-07). One implementation (in Infrastructure) runs two

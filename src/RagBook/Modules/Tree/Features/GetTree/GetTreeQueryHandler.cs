@@ -14,6 +14,6 @@ public sealed class GetTreeQueryHandler(ITreeReader treeReader)
     {
         TreeData data = await treeReader.GetAsync(cancellationToken);
 
-        return new TreeResponse(data.Folders, data.Documents);
+        return new TreeResponse(data.Folders, data.Documents, data.DemoDocuments);
     }
 }

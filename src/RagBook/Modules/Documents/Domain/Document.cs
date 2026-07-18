@@ -148,6 +148,38 @@ public sealed class Document : ISessionOwned, IAuditable
     }
 
     /// <summary>
+    /// Creates a seeded, read-only demo document with a <b>fixed</b> id (US-03). Origin is
+    /// <see cref="DocumentOrigin.Demo"/> (excluded from quota, read-only for move/delete/bulk); it starts
+    /// <see cref="DocumentStatus.Processing"/> and is marked ready once the seeder indexes it. The fixed id makes
+    /// seeding idempotent across restarts. Guards the same intrinsic invariants as <see cref="CreateUpload"/>.
+    /// </summary>
+    public static Result<Document> CreateDemo(
+        Guid id,
+        long sizeBytes,
+        string fileName,
+        string contentType,
+        string storagePath,
+        DateTimeOffset uploadedAt)
+    {
+        if (sizeBytes <= 0)
+        {
+            return DocumentErrors.EmptyFile;
+        }
+
+        if (string.IsNullOrWhiteSpace(fileName)
+            || string.IsNullOrWhiteSpace(contentType)
+            || string.IsNullOrWhiteSpace(storagePath))
+        {
+            return QuotaErrors.InvalidSize;
+        }
+
+        return new Document(id, sizeBytes, folderId: null, fileName, contentType, storagePath, uploadedAt)
+        {
+            Origin = DocumentOrigin.Demo,
+        };
+    }
+
+    /// <summary>
     /// Renames the file to a de-duplicated candidate (US-04 AC-5). Used by the upload repository when it
     /// finds the first free suffix for the target folder under the session lock — before insert.
     /// </summary>

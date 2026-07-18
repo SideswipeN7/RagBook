@@ -11,4 +11,7 @@ public enum ChatScopeType
 
     /// <summary>A single document.</summary>
     Document = 2,
+
+    /// <summary>Every ready demo document, across all sessions (US-03) — retrieved by origin, not session.</summary>
+    Demo = 3,
 }

@@ -4,6 +4,7 @@ import {
   Component,
   ElementRef,
   OnInit,
+  computed,
   inject,
   signal,
   viewChild,
@@ -11,6 +12,7 @@ import {
 import { ApiKeyStore } from '../core/api-key.store';
 import { ChatExchange, ChatScopeSelection, ChatStore } from '../core/chat.store';
 import { ConversationsStore } from '../core/conversations.store';
+import { DemoStore } from '../core/demo.store';
 import { ChatAnswer } from './chat-answer/chat-answer';
 import { ConversationList } from './conversation-list/conversation-list';
 import { ScopeSelector } from './scope-selector/scope-selector';
@@ -33,6 +35,7 @@ export class Chat implements AfterViewChecked, OnInit {
   private readonly store = inject(ChatStore);
   private readonly conversationsStore = inject(ConversationsStore);
   private readonly apiKey = inject(ApiKeyStore);
+  private readonly demoStore = inject(DemoStore);
 
   private readonly threadEl = viewChild<ElementRef<HTMLElement>>('threadEl');
 
@@ -43,9 +46,18 @@ export class Chat implements AfterViewChecked, OnInit {
   readonly activeConversationId = this.conversationsStore.activeId;
   readonly scope = signal<ChatScopeSelection>({ type: 'all', label: 'Wszystkie dokumenty' });
 
+  // US-03 — demo mode: a keyless scope with its own per-session counter + BYOK nudge.
+  readonly isDemoScope = computed(() => this.scope().type === 'demo');
+  /** The composer is locked only when no key AND not in demo scope (demo is keyless). */
+  readonly locked = computed(() => this.chatLocked() && !this.isDemoScope());
+  readonly demoRemaining = this.demoStore.remaining;
+  readonly demoMax = this.demoStore.max;
+  readonly demoExhausted = this.demoStore.isExhausted;
+
   private stick = true;
 
   async ngOnInit(): Promise<void> {
+    this.demoStore.refresh();
     const list = await this.conversationsStore.list();
     if (list.length > 0) {
       this.conversationsStore.setActive(list[0].id);
@@ -105,7 +117,7 @@ export class Chat implements AfterViewChecked, OnInit {
 
   send(input: HTMLTextAreaElement): void {
     const question = input.value.trim();
-    if (question.length === 0 || this.chatLocked()) {
+    if (question.length === 0 || this.locked()) {
       return;
     }
 
@@ -116,7 +128,12 @@ export class Chat implements AfterViewChecked, OnInit {
     }
 
     this.stick = true;
-    void this.store.ask(question, this.scope());
+    const isDemo = this.isDemoScope();
+    void this.store.ask(question, this.scope()).then(() => {
+      if (isDemo) {
+        this.demoStore.refresh(); // reconcile the "X / N pytań demo" counter after the ask
+      }
+    });
     input.value = '';
   }
 

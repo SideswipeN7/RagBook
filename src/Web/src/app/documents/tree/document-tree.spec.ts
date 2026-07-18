@@ -161,6 +161,24 @@ describe('DocumentTree', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Pusty folder');
   });
 
+  it('renders a read-only demo section with no mutating controls (US-03 AC-4)', () => {
+    const el = loadTree();
+    const store = TestBed.inject(TreeStore);
+
+    store.demoDocuments.set([
+      { id: 'demo1', folderId: null, fileName: 'demo-umowa.pdf', contentType: 'application/pdf', sizeBytes: 10, status: 'Ready', chunkCount: 2, uploadedAt: '2026-07-09T10:00:00Z', failureReason: null },
+    ]);
+    fixture.detectChanges();
+
+    const demoSection = el.querySelector('.tree__demo');
+    expect(demoSection).toBeTruthy();
+    expect(demoSection?.textContent).toContain('demo-umowa.pdf');
+    expect(demoSection?.textContent).toContain('tylko do odczytu');
+    // No move/delete/checkbox controls inside the demo section.
+    expect(demoSection?.querySelector('button')).toBeNull();
+    expect(demoSection?.querySelector('input[type="checkbox"]')).toBeNull();
+  });
+
   it('shows the bulk action bar with the count while documents are selected (US-12 AC-1)', () => {
     const el = loadTree();
     const selection = TestBed.inject(SelectionStore);

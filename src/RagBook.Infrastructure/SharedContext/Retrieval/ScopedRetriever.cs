@@ -29,6 +29,7 @@ public sealed class ScopedRetriever(
     : IScopedRetriever
 {
     private const int ReadyStatus = (int)DocumentStatus.Ready;
+    private const int DemoOrigin = (int)DocumentOrigin.Demo;
 
     /// <inheritdoc />
     public async Task<Result<ScopedRetrievalResult>> RetrieveAsync(
@@ -38,7 +39,8 @@ public sealed class ScopedRetriever(
     {
         Guid session = sessionContext.UserSessionId;
 
-        // 1. Resolve/validate the scope target against the session.
+        // 1. Resolve/validate the scope target against the session. Demo scope (US-03) reads globally by origin —
+        // it has no per-session target to validate, so it skips straight to the (origin-fenced) chunk check.
         string? scopePath = null;
         if (scope.Type == ChatScopeType.Folder)
         {
@@ -108,7 +110,7 @@ public sealed class ScopedRetriever(
                FROM chunks c
                JOIN documents d ON d.id = c.document_id
                LEFT JOIN folders f ON f.id = d.folder_id
-               WHERE d.user_session_id = @session AND d.status = @ready AND ({ScopePredicate(scope)})
+               WHERE {FilterClause(scope)}
              )
              """);
         AddScopeParameters(command, scope, scopePath, session);
@@ -133,7 +135,7 @@ public sealed class ScopedRetriever(
              FROM chunks c
              JOIN documents d ON d.id = c.document_id
              LEFT JOIN folders f ON f.id = d.folder_id
-             WHERE d.user_session_id = @session AND d.status = @ready AND ({ScopePredicate(scope)})
+             WHERE {FilterClause(scope)}
              ORDER BY c.embedding <=> CAST(@queryVec AS vector)
              LIMIT @topK
              """);
@@ -159,6 +161,17 @@ public sealed class ScopedRetriever(
         return matches;
     }
 
+    /// <summary>
+    /// The full document filter. Demo scope (US-03) reads globally by origin — the per-session predicate is dropped
+    /// and replaced by an <c>origin = Demo</c> fence; every other scope stays session-locked, as before.
+    /// </summary>
+    private static string FilterClause(ChatScope scope)
+    {
+        return scope.Type == ChatScopeType.Demo
+            ? "d.origin = @demoOrigin AND d.status = @ready"
+            : $"d.user_session_id = @session AND d.status = @ready AND ({ScopePredicate(scope)})";
+    }
+
     private static string ScopePredicate(ChatScope scope)
     {
         return scope.Type switch
@@ -171,8 +184,15 @@ public sealed class ScopedRetriever(
 
     private static void AddScopeParameters(DbCommand command, ChatScope scope, string? scopePath, Guid session)
     {
-        AddParameter(command, "session", session);
         AddParameter(command, "ready", ReadyStatus);
+
+        if (scope.Type == ChatScopeType.Demo)
+        {
+            AddParameter(command, "demoOrigin", DemoOrigin);
+            return;
+        }
+
+        AddParameter(command, "session", session);
 
         switch (scope.Type)
         {
