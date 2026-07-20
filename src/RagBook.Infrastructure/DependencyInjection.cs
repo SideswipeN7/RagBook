@@ -4,6 +4,7 @@ using RagBook.Infrastructure.SharedContext.Interceptors;
 using RagBook.Infrastructure.SharedContext.Persistence;
 using RagBook.Infrastructure.SharedContext.Processing;
 using RagBook.Infrastructure.SharedContext.Providers.Anthropic;
+using RagBook.Infrastructure.SharedContext.Providers.Cli;
 using RagBook.Infrastructure.SharedContext.Retrieval;
 using RagBook.Infrastructure.SharedContext.Sessions;
 using RagBook.Infrastructure.SharedContext.Settings;
@@ -112,7 +113,12 @@ public static class DependencyInjection
         // US-14 answer generation — streaming Anthropic client. The generation HttpClient has NO standard
         // total-request-timeout/retry: that would truncate or re-issue a live token stream (C1). Cancellation
         // flows via the request token (client disconnect); transport failures map to provider-unavailable.
-        services.AddScoped<IAnswerGenerator, AnthropicAnswerGenerator>();
+        // US-22 keyless routing: the default IAnswerGenerator is the router; the two concrete backends are keyed.
+        // Key present → "anthropic"; no key + CLI enabled → "cli"; else the existing key-missing failure.
+        services.AddKeyedScoped<IAnswerGenerator, AnthropicAnswerGenerator>("anthropic");
+        services.AddKeyedScoped<IAnswerGenerator, ClaudeCliAnswerGenerator>("cli");
+        services.AddScoped<ICliRunner, ProcessCliRunner>();
+        services.AddScoped<IAnswerGenerator, RoutingAnswerGenerator>();
         services.AddHttpClient(AnthropicAnswerGenerator.HttpClientName)
             .ConfigureHttpClient((provider, client) =>
             {

@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ApiKeyStore } from '../core/api-key.store';
+import { AppConfigStore } from '../core/app-config.store';
 import { ChatExchange, ChatStore } from '../core/chat.store';
 import { ConversationSummary, ConversationsStore } from '../core/conversations.store';
 import { DemoStore } from '../core/demo.store';
@@ -26,6 +27,11 @@ class FakeDemoStore {
   readonly isExhausted = signal(false);
   readonly refresh = jasmine.createSpy('refresh');
   readonly noteAsked = jasmine.createSpy('noteAsked');
+}
+
+class FakeAppConfigStore {
+  readonly keylessGeneration = signal(false);
+  readonly refresh = jasmine.createSpy('refresh');
 }
 
 class FakeConversationsStore {
@@ -57,10 +63,12 @@ describe('Chat', () => {
   let store: FakeChatStore;
   let conversations: FakeConversationsStore;
   let apiKey: ApiKeyStore;
+  let appConfig: FakeAppConfigStore;
 
   beforeEach(() => {
     store = new FakeChatStore();
     conversations = new FakeConversationsStore();
+    appConfig = new FakeAppConfigStore();
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
@@ -68,6 +76,7 @@ describe('Chat', () => {
         { provide: ChatStore, useValue: store },
         { provide: ConversationsStore, useValue: conversations },
         { provide: DemoStore, useValue: new FakeDemoStore() },
+        { provide: AppConfigStore, useValue: appConfig },
       ],
     });
     apiKey = TestBed.inject(ApiKeyStore);
@@ -107,6 +116,15 @@ describe('Chat', () => {
 
     expect(text()).toContain('Skonfiguruj klucz API');
     expect((fixture.nativeElement as HTMLElement).querySelector('textarea')).toBeNull();
+  });
+
+  it('unlocks the composer without a key when the server generates keyless (US-22)', () => {
+    apiKey.status.set('none');
+    appConfig.keylessGeneration.set(true);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.locked()).toBeFalse();
+    expect((fixture.nativeElement as HTMLElement).querySelector('textarea')).not.toBeNull();
   });
 
   it('shows suggested demo questions in the empty chat and asks one in the demo scope (US-20 AC-3)', () => {

@@ -324,6 +324,33 @@ handled deliberately:
   `IApiKeyValidator` / `IAnthropicClientFactory` seams (with resilience + in-memory test fakes) establish
   the pattern US-06/US-14 follow.
 
+## Generacja bez klucza — lokalne CLI Claude (US-22)
+
+For local runs and self-hosting there is an **optional keyless fallback**: when a chat ask has no usable key
+(no session BYOK key **and** no server application key), generation can run through the locally installed,
+already-authenticated `claude` CLI instead of returning `settings.api_key_missing`. A present key always wins —
+CLI mode changes nothing when a key is available.
+
+- **Off by default.** Enable with `ClaudeCli__Enabled=true` (section `ClaudeCli`; `Command` defaults to
+  `claude`, optional `Model`, `TimeoutSeconds` default 120). The **default docker image does not ship the CLI** —
+  keyless mode assumes a machine where `claude` is installed and logged in (a local `dotnet run` / Aspire host, or
+  a self-host image that adds it).
+- **Routing.** The default `IAnswerGenerator` is a `RoutingAnswerGenerator`: key present → the unchanged Anthropic
+  streaming generator; no key + CLI enabled → the `ClaudeCliAnswerGenerator`; no key + CLI disabled → the existing
+  key-missing failure (`settings.invalid_api_key` for a session ask, `chat.demo_unavailable` for demo). The two
+  concrete generators are keyed in DI (`"anthropic"` / `"cli"`) so both are injectable and unit-tested with fakes.
+- **Safe invocation.** The CLI runs as `claude -p --output-format text [--model …] --append-system-prompt <system>`
+  with the grounded user prompt on **stdin** — an explicit argument list, never a shell string, so document or
+  question content can never inject shell commands. The CLI carries its own auth, so no secret is passed or stored.
+- **Failure = unavailable, never a crash.** A non-zero exit, empty output, timeout, or a missing binary maps to
+  `chat.provider_unavailable` (the same code the HTTP provider uses), surfaced as the SSE `error` event or a
+  pre-stream ProblemDetails — identical UX to any provider outage.
+- **Not token-streaming.** Text mode returns the whole answer at once, so it is yielded as a single delta; the SSE
+  plumbing (sources → token → done) is unchanged. A `stream-json` incremental parser is possible future work.
+- **Client unlock.** `GET /api/config` returns `{ keylessGeneration }` (true when CLI mode is on — the only mode
+  that serves a non-demo scope keylessly; a server application key pays for the demo scope only, which the composer
+  already unlocks on its own). The Angular composer unlocks without a BYOK key when it is true.
+
 ## Usuwanie dokumentu (US-08)
 
 `DELETE /api/documents/{id}` hard-deletes a document and its whole index:

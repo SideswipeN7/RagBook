@@ -43,6 +43,7 @@ public static class ChatEndpoints
             ISessionContext sessionContext,
             IOptions<RagOptions> ragOptions,
             IOptions<ChatOptions> chatOptions,
+            IOptions<ClaudeCliOptions> cliOptions,
             CancellationToken cancellationToken) =>
         {
             if (!TryBuildScope(request.Scope, out ChatScope scope))
@@ -55,6 +56,9 @@ public static class ChatEndpoints
             // Pre-generation guards. Demo (US-03) is keyless — it uses the server application key and is gated by a
             // per-IP hourly limit (429 + Retry-After) then a per-session lifetime limit; the BYOK key guard is
             // skipped for it. Every other scope keeps the US-02 session-key guard (401 before any provider call).
+            // US-22: when keyless CLI mode is on, the router falls back to the local CLI, so the key-presence guards
+            // are relaxed — a missing key no longer blocks the ask (the CLI serves it instead).
+            bool cliEnabled = cliOptions.Value.Enabled;
             if (scope.Type == ChatScopeType.Demo)
             {
                 string clientIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -68,7 +72,7 @@ public static class ChatEndpoints
                     return;
                 }
 
-                if (clientFactory.CreateForDemo().IsFailure)
+                if (clientFactory.CreateForDemo().IsFailure && !cliEnabled)
                 {
                     await WriteProblemAsync(httpContext, DemoErrors.Unavailable);
 
@@ -85,7 +89,7 @@ public static class ChatEndpoints
                     return;
                 }
             }
-            else if (clientFactory.CreateForSession().IsFailure)
+            else if (clientFactory.CreateForSession().IsFailure && !cliEnabled)
             {
                 await WriteProblemAsync(httpContext, SettingsErrors.ApiKeyMissing);
 

@@ -41,6 +41,7 @@ builder.Services.Configure<ChunkingOptions>(builder.Configuration.GetSection(Chu
 builder.Services.Configure<EmbeddingOptions>(builder.Configuration.GetSection(EmbeddingOptions.SectionName));
 builder.Services.Configure<RagOptions>(builder.Configuration.GetSection(RagOptions.SectionName));
 builder.Services.Configure<ChatOptions>(builder.Configuration.GetSection(ChatOptions.SectionName));
+builder.Services.Configure<ClaudeCliOptions>(builder.Configuration.GetSection(ClaudeCliOptions.SectionName));
 
 builder.Services.AddApp();
 
@@ -132,6 +133,7 @@ app.MapDocumentEndpoints();
 app.MapTreeEndpoints();
 app.MapSettingsEndpoints();
 app.MapDocumentStatusEndpoints();
+app.MapConfigEndpoints();
 app.MapChatEndpoints();
 app.MapConversationEndpoints();
 app.MapDemoEndpoints();

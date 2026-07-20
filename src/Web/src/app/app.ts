@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { AppConfigStore } from './core/app-config.store';
 import { ChatStore } from './core/chat.store';
 import { ConversationsStore } from './core/conversations.store';
 import { DemoStore } from './core/demo.store';
@@ -38,6 +39,7 @@ export class App implements OnInit {
   private readonly conversationsStore = inject(ConversationsStore);
   private readonly chat = inject(ChatStore);
   private readonly demo = inject(DemoStore);
+  private readonly appConfig = inject(AppConfigStore);
 
   readonly state = this.session.state;
   readonly notFoundMessage = this.notFound.message;
@@ -52,6 +54,7 @@ export class App implements OnInit {
     this.session.load().subscribe(() => this.quota.refresh());
     this.documentStatus.connect(); // live status pushes (US-06)
     this.demo.refresh(); // demo availability + counter (US-03)
+    this.appConfig.refresh(); // keyless-generation capability (US-22) — unlocks the composer without a BYOK key
     void this.bootstrapConversations();
   }
 

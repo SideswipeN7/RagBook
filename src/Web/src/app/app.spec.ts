@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { AppConfigStore } from './core/app-config.store';
 import { ChatStore } from './core/chat.store';
 import { ConversationsStore } from './core/conversations.store';
 import { DemoStore } from './core/demo.store';
@@ -26,6 +27,10 @@ class FakeDemoStore {
   readonly available = signal(false);
   readonly refresh = jasmine.createSpy('refresh');
 }
+class FakeAppConfigStore {
+  readonly keylessGeneration = signal(false);
+  readonly refresh = jasmine.createSpy('refresh');
+}
 class FakeDocumentStatusStore {
   readonly connect = jasmine.createSpy('connect');
 }
@@ -43,6 +48,7 @@ describe('App', () => {
         { provide: ConversationsStore, useValue: new FakeConversationsStore() },
         { provide: ChatStore, useValue: new FakeChatStore() },
         { provide: DemoStore, useValue: new FakeDemoStore() },
+        { provide: AppConfigStore, useValue: new FakeAppConfigStore() },
         { provide: DocumentStatusStore, useValue: new FakeDocumentStatusStore() },
       ],
     });
