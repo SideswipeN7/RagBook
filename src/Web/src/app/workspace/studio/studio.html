@@ -1,0 +1,19 @@
+<section class="studio" aria-label="Studio">
+  <h2 class="studio__title">Studio</h2>
+  <p class="studio__lead">Wizualizacje na podstawie źródeł tej rozmowy.</p>
+
+  <ul class="studio__tiles">
+    @for (tile of tiles; track tile.title) {
+      <li class="studio__tile" [class.studio__tile--soon]="tile.soon">
+        <span class="studio__tile-title">{{ tile.title }}</span>
+        @if (tile.soon) {
+          <span class="studio__badge">wkrótce</span>
+        }
+      </li>
+    }
+  </ul>
+
+  <p class="studio__placeholder" role="status">
+    Tu pojawią się wygenerowane materiały (podsumowanie, mapa myśli). Dodaj źródła do rozmowy, aby zacząć.
+  </p>
+</section>
