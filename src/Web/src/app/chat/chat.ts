@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { ApiKeyStore } from '../core/api-key.store';
+import { AppConfigStore } from '../core/app-config.store';
 import { ChatExchange, ChatScopeSelection, ChatStore } from '../core/chat.store';
 import { ConversationsStore } from '../core/conversations.store';
 import { DemoStore } from '../core/demo.store';
@@ -35,6 +36,7 @@ export class Chat implements AfterViewChecked, OnInit {
   private readonly store = inject(ChatStore);
   private readonly conversationsStore = inject(ConversationsStore);
   private readonly apiKey = inject(ApiKeyStore);
+  private readonly appConfig = inject(AppConfigStore);
   private readonly demoStore = inject(DemoStore);
 
   private readonly threadEl = viewChild<ElementRef<HTMLElement>>('threadEl');
@@ -48,8 +50,12 @@ export class Chat implements AfterViewChecked, OnInit {
 
   // US-03 — demo mode: a keyless scope with its own per-session counter + BYOK nudge.
   readonly isDemoScope = computed(() => this.scope().type === 'demo');
-  /** The composer is locked only when no key AND not in demo scope (demo is keyless). */
-  readonly locked = computed(() => this.chatLocked() && !this.isDemoScope());
+  // US-22 — keyless generation (application key or local CLI fallback) unlocks the composer without a BYOK key.
+  readonly keylessGeneration = this.appConfig.keylessGeneration;
+  /** The composer is locked only when no key AND not in demo scope AND the server can't generate keyless. */
+  readonly locked = computed(
+    () => this.chatLocked() && !this.isDemoScope() && !this.keylessGeneration(),
+  );
   readonly demoRemaining = this.demoStore.remaining;
   readonly demoMax = this.demoStore.max;
   readonly demoExhausted = this.demoStore.isExhausted;
@@ -65,6 +71,7 @@ export class Chat implements AfterViewChecked, OnInit {
   private stick = true;
 
   async ngOnInit(): Promise<void> {
+    this.appConfig.refresh();
     this.demoStore.refresh();
     const list = await this.conversationsStore.list();
     if (list.length > 0) {
