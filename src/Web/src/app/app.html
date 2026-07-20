@@ -1,28 +1,65 @@
 <app-offline-banner />
-<main class="shell">
-  <h1 class="shell__title">RagBook</h1>
 
-  @if (notFoundMessage(); as message) {
-    <p class="shell__notice" role="status">{{ message }}</p>
-  }
-
-  @if (state(); as session) {
-    <section class="shell__card">
-      <p>
-        @if (session.isNew) {
-          Welcome — a private session was just created for you.
-        } @else {
-          Welcome back.
-        }
-      </p>
-      <p class="shell__muted">Documents in this session: {{ session.resourceCount }}</p>
-      <app-quota-bar />
-      <app-api-key-settings />
-      <app-document-upload />
-      <app-document-tree />
-      <app-chat />
-    </section>
+@if (state()) {
+  @if (!configured()) {
+    <!-- US-21 — config-first: onboarding before the workspace. -->
+    <main class="onboard-shell">
+      <h1 class="onboard-shell__title">RagBook</h1>
+      @if (notFoundMessage(); as message) {
+        <p class="onboard-shell__notice" role="status">{{ message }}</p>
+      }
+      <app-onboarding />
+    </main>
   } @else {
-    <p class="shell__muted">Starting your session…</p>
+    <!-- US-21 — the 4-column workspace. -->
+    <div class="workspace" [class.workspace--conv-collapsed]="conversationsCollapsed()" [class.workspace--src-collapsed]="sourcesCollapsed()">
+      <!-- Column 1: conversations (collapsible) -->
+      <aside class="workspace__col workspace__col--conversations">
+        <button type="button" class="workspace__collapse" (click)="toggleConversations()" [attr.aria-expanded]="!conversationsCollapsed()" aria-label="Zwiń/rozwiń rozmowy">
+          {{ conversationsCollapsed() ? '»' : '«' }}
+        </button>
+        @if (!conversationsCollapsed()) {
+          <app-conversation-list
+            [conversations]="conversations()"
+            [activeId]="activeConversationId()"
+            (select)="onSelectConversation($event)"
+            (create)="onNewConversation()"
+            (remove)="onDeleteConversation($event)"
+          />
+        }
+      </aside>
+
+      <!-- Column 2: sources (collapsible) — quota, upload, the conversation's document tree -->
+      <aside class="workspace__col workspace__col--sources">
+        <div class="workspace__col-head">
+          <span class="workspace__col-title">Źródła</span>
+          <button type="button" class="workspace__collapse" (click)="toggleSources()" [attr.aria-expanded]="!sourcesCollapsed()" aria-label="Zwiń/rozwiń źródła">
+            {{ sourcesCollapsed() ? '»' : '«' }}
+          </button>
+        </div>
+        @if (!sourcesCollapsed()) {
+          <app-quota-bar />
+          <app-document-upload />
+          <app-document-tree />
+        }
+      </aside>
+
+      <!-- Column 3: chat -->
+      <main class="workspace__col workspace__col--chat">
+        @if (notFoundMessage(); as message) {
+          <p class="workspace__notice" role="status">{{ message }}</p>
+        }
+        <app-chat />
+      </main>
+
+      <!-- Column 4: Studio (visualizations) -->
+      <aside class="workspace__col workspace__col--studio">
+        <app-studio />
+      </aside>
+    </div>
   }
-</main>
+} @else {
+  <main class="onboard-shell">
+    <p class="onboard-shell__muted">Starting your session…</p>
+  </main>
+}
