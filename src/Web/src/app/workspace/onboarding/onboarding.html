@@ -1,0 +1,21 @@
+<section class="onboarding" aria-label="Konfiguracja">
+  <h2 class="onboarding__title">Zacznij pracę</h2>
+  <p class="onboarding__lead">
+    Podaj własny klucz API Anthropic, aby zadawać pytania do swoich dokumentów — albo kontynuuj w trybie demo na
+    wbudowanych, przykładowych dokumentach.
+  </p>
+
+  <app-api-key-settings />
+
+  <div class="onboarding__demo">
+    <button type="button" class="onboarding__btn" (click)="continueWithoutKey()">
+      Kontynuuj bez klucza (tryb demo)
+    </button>
+    @if (!demoAvailable()) {
+      <p class="onboarding__note">
+        Tryb demo wymaga skonfigurowanego klucza aplikacji po stronie serwera — bez niego zobaczysz interfejs, ale
+        generowanie odpowiedzi będzie niedostępne.
+      </p>
+    }
+  </div>
+</section>

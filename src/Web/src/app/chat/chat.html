@@ -1,14 +1,3 @@
-<div class="chat-layout">
-  <aside class="chat-layout__sidebar">
-    <app-conversation-list
-      [conversations]="conversations()"
-      [activeId]="activeConversationId()"
-      (select)="onSelectConversation($event)"
-      (create)="onNewConversation()"
-      (remove)="onDeleteConversation($event)"
-    />
-  </aside>
-
   <section class="chat" aria-label="Czat z dokumentami">
     <header class="chat__bar">
       <span class="chat__chip" title="Aktywny zakres">{{ scope().label }}</span>
@@ -77,4 +66,3 @@
     </form>
   }
   </section>
-</div>
